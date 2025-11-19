@@ -1,0 +1,10 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[codz]
+*$py.class
+
+## cocotb
+sim_build/
+
+## macOS
+.DS_Store
