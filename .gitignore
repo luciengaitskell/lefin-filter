@@ -13,3 +13,4 @@ sim_build/
 *.log
 *.jou
 vivado*.str
+vivado/
