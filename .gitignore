@@ -8,3 +8,8 @@ sim_build/
 
 ## macOS
 .DS_Store
+
+## Vivado
+*.log
+*.jou
+vivado*.str
