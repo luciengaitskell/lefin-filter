@@ -139,7 +139,7 @@ async def test_a(dut):
             padding=0,
             bias=False,
         )
-        int_kernel = torch.tensor([[1, 0, 0, 0, 0], [0, 0, 0, 0, 0]], dtype=torch.int8)
+        int_kernel = torch.tensor([[1, 0, 4, 0, 0], [0, 1, 0, -1, 0]], dtype=torch.int8)
         assert int_kernel.shape == (layer.out_channels, KERNEL_WIDTH), (
             f"Kernel shape mismatch {layer.weight.shape}"
         )
