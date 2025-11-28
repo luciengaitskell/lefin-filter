@@ -8,7 +8,7 @@ from cocotb.clock import Clock
 from cocotb.triggers import (
     ClockCycles,
 )
-from cocotb.runner import get_runner
+from cocotb_tools.runner import get_runner
 from cocotb_bus.scoreboard import Scoreboard
 from sim.bus.axis import AXIS_Monitor, M_AXIS_Driver, S_AXIS_Driver
 import torch
@@ -99,8 +99,8 @@ class Conv1dCallback:
 
         result = packed_to_long_torch(
             result,
-            self.dut.OUTPUT_BIT_WIDTH.value,
-            self.dut.NUM_PARALLEL_CONVS.value,
+            int(self.dut.OUTPUT_BIT_WIDTH.value),
+            int(self.dut.NUM_PARALLEL_CONVS.value),
         )
 
         input_vals, expected_result = self.scoreboard_queue.popleft()
@@ -147,11 +147,11 @@ async def test_a(dut):
         callback.scoreboard_queue,
         compare_fn=callback.compare_fn,
     )
-    cocotb.start_soon(Clock(dut.aclk, 10, units="ns").start())
+    cocotb.start_soon(Clock(dut.aclk, 10, unit="ns").start())
     await reset(dut.aclk, dut.aresetn, 2, 0)
 
     EXPECTED_READ_TRANSACTIONS = WRITE_ITER - (
-        (KERNEL_WIDTH - 1) / dut.INPUT_WIDTH.value
+        (KERNEL_WIDTH - 1) / int(dut.INPUT_WIDTH.value)
     )
     assert EXPECTED_READ_TRANSACTIONS.is_integer(), (
         f"Expected read transactions must be integer, got {EXPECTED_READ_TRANSACTIONS}"
@@ -181,8 +181,8 @@ async def test_a(dut):
     outd.append({"type": "read", "duration": EXPECTED_READ_TRANSACTIONS})
 
     await ClockCycles(dut.aclk, 3500)
-    assert (
-        inm.transactions == outm.transactions + dut.CYCLES_TO_FILL_PREVIOUS_INPUTS.value
+    assert inm.transactions == outm.transactions + int(
+        dut.CYCLES_TO_FILL_PREVIOUS_INPUTS.value
     ), "Transaction Count doesn't match! :-/"
     print(f"in transactions: {inm.transactions}, out transactions: {outm.transactions}")
     assert scoreboard.errors == 0, f"Scoreboard found {scoreboard.errors} errors! :-/"
