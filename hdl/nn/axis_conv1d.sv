@@ -93,7 +93,7 @@ module axis_conv1d #(
     end
   end
 
-  logic signed [OUTPUT_BIT_WIDTH-1:0] activations[0:NUM_PARALLEL_CONVS-1][CHANNEL_OUT_COUNT-1:0];
+  logic signed [OUTPUT_BIT_WIDTH-1:0] activations[0:NUM_PARALLEL_CONVS-1][0:CHANNEL_OUT_COUNT-1];
 
   generate
     for (genvar i = 0; i < NUM_PARALLEL_CONVS; i++) begin : parallel_convs
