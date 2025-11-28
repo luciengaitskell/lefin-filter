@@ -103,8 +103,7 @@ class Conv1dCallback:
             int(self.dut.OUTPUT_BIT_WIDTH.value),
             int(self.dut.NUM_PARALLEL_CONVS.value)
             * int(self.dut.CHANNEL_OUT_COUNT.value),
-        )
-        result = result.view(
+        ).view(
             (
                 self.dut.CHANNEL_OUT_COUNT.value,
                 self.dut.NUM_PARALLEL_CONVS.value,
