@@ -101,6 +101,7 @@ module axis_conv1d #(
           .INPUT_BIT_WIDTH(INPUT_BIT_WIDTH),
           .WEIGHT_BIT_WIDTH(WEIGHT_BIT_WIDTH),
           .KERNEL_WIDTH(KERNEL_WIDTH),
+          .CHANNEL_OUT_COUNT(CHANNEL_OUT_COUNT),
           .STAGE_1_MULT(COMBINATIONAL),
           .STAGE_2_ADD(COMBINATIONAL)
       ) conv1d_parallel (
