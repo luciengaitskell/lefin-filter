@@ -133,7 +133,7 @@ async def test_a(dut):
             bias=False,
         )
         # Set kernel to [1, 2, 3, 4, 5] while respecting Conv1d weight shape (out, in, k)
-        int_kernel = torch.tensor([1, 0, 0, 0, 0], dtype=torch.int8)
+        int_kernel = torch.tensor([[1, 0, 0, 0, 0]], dtype=torch.int8)
         layer.weight.copy_(int_kernel.float().view_as(layer.weight))
         dut.weights.value = int_kernel.tolist()
     callback = Conv1dCallback(dut, scoreboard, layer=layer)
