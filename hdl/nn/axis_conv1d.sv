@@ -28,7 +28,7 @@ module axis_conv1d #(
     localparam integer NUM_PARALLEL_CONVS = ((INPUT_WIDTH) / STRIDE),
     // TODO: Would be nice if these weren't defined twice (also in conv1d.sv)
     localparam integer INTERMEDIATE_BIT_WIDTH = INPUT_BIT_WIDTH + WEIGHT_BIT_WIDTH,
-    localparam integer OUTPUT_BIT_WIDTH = INTERMEDIATE_BIT_WIDTH + (KERNEL_WIDTH - 1),
+    localparam integer OUTPUT_BIT_WIDTH = INTERMEDIATE_BIT_WIDTH + $clog2(KERNEL_WIDTH),
     localparam integer C_M00_AXIS_TDATA_WIDTH = OUTPUT_BIT_WIDTH * NUM_PARALLEL_CONVS
 ) (
 

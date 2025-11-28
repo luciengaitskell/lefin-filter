@@ -5,7 +5,7 @@ module conv1d #(
     parameter integer WEIGHT_BIT_WIDTH = 8,
     parameter integer KERNEL_WIDTH = 3,
     localparam integer INTERMEDIATE_BIT_WIDTH = INPUT_BIT_WIDTH + WEIGHT_BIT_WIDTH,
-    localparam integer OUTPUT_BIT_WIDTH = INTERMEDIATE_BIT_WIDTH + (KERNEL_WIDTH - 1),
+    localparam integer OUTPUT_BIT_WIDTH = INTERMEDIATE_BIT_WIDTH + $clog2(KERNEL_WIDTH),
     parameter logic_style STAGE_1_MULT = COMBINATIONAL,
     parameter logic_style STAGE_2_ADD = COMBINATIONAL
 ) (
