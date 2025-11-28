@@ -141,7 +141,7 @@ module axis_conv1d #(
     m00_axis_tdata = '0;
     for (integer i = 0; i < NUM_PARALLEL_CONVS; i++) begin
       for (integer channel_out = 0; channel_out < CHANNEL_OUT_COUNT; channel_out++) begin
-        m00_axis_tdata[OUTPUT_BIT_WIDTH*channel_out + OUTPUT_BIT_WIDTH*i*CHANNEL_OUT_COUNT +: OUTPUT_BIT_WIDTH] = activations[i][channel_out];
+        m00_axis_tdata[OUTPUT_BIT_WIDTH*(channel_out*NUM_PARALLEL_CONVS + i) +: OUTPUT_BIT_WIDTH] = activations[i][channel_out];
       end
     end
     m00_axis_tvalid = m00_axis_tstrb[0];
