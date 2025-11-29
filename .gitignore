@@ -20,3 +20,6 @@ bd/**/*.ui
 bd/**/*.xml
 ip_repo/edit*
 bd/*/ip/**
+bd/*/sim/**
+bd/*/synth/**
+bd/*/design_*_ooc.xdc
