@@ -9,12 +9,10 @@ from cocotb.triggers import (
     ClockCycles,
 )
 from cocotb_tools.runner import get_runner
-from sim.bus.axis import AXIS_Testbench
 import torch
 from torch import nn, Tensor
-
-
-test_file = os.path.basename(__file__).replace(".py", "")
+from sim.bus.axis import AXIS_Testbench
+from sim.util.sim import build_and_run_sim
 
 
 async def reset(clk, rst, cycles_held=3, polarity=1):
@@ -185,47 +183,16 @@ async def test_a(dut):
     await ClockCycles(dut.aclk, 20)
 
 
-def conv1d_runner():
-    # https://docs.cocotb.org/en/v1.9.2/simulator_support.html#verilator
-    sim = os.getenv("SIM", "verilator")
-    build_test_args = [
-        "-Wall",
-        # Enable tracing and fst generation
-        "--trace",
-        "--trace-fst",
-        "--trace-structs",
-        # Enable non-blocking assignments
-        "--timing",
-    ]
-    proj_path = Path(__file__).resolve().parent.parent.parent
-    sources = [proj_path / "hdl" / "nn" / "axis_conv1d.sv"]
-    parameters = {
-        "KERNEL_WIDTH": KERNEL_WIDTH,
-        "C_S00_AXIS_TDATA_WIDTH": C_S00_AXIS_TDATA_WIDTH,
-        "INPUT_BIT_WIDTH": INPUT_BIT_WIDTH,
-        "CHANNEL_OUT_COUNT": CHANNEL_OUT_COUNT,
-    }
-    sys.path.append(str(proj_path / "sim" / "nn"))
-    runner = get_runner(sim)
-    hdl_toplevel = "axis_conv1d"
-    runner.build(
-        sources=sources,
-        includes=[proj_path / "hdl" / "nn"],
-        hdl_toplevel=hdl_toplevel,
-        always=True,
-        build_args=build_test_args,
-        parameters=parameters,
-        timescale=("1ns", "1ps"),
-        waves=True,
-    )
-    run_test_args = []
-    runner.test(
-        hdl_toplevel=hdl_toplevel,
-        test_module=test_file,
-        test_args=run_test_args,
-        waves=True,
-    )
-
-
 if __name__ == "__main__":
-    conv1d_runner()
+    build_and_run_sim(
+        __file__,
+        hdl_toplevel="axis_conv1d",
+        sources=["nn/axis_conv1d.sv"],
+        includes=["nn"],
+        parameters={
+            "KERNEL_WIDTH": KERNEL_WIDTH,
+            "C_S00_AXIS_TDATA_WIDTH": C_S00_AXIS_TDATA_WIDTH,
+            "INPUT_BIT_WIDTH": INPUT_BIT_WIDTH,
+            "CHANNEL_OUT_COUNT": CHANNEL_OUT_COUNT,
+        },
+    )
