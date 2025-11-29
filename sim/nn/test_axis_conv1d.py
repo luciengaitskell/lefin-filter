@@ -125,7 +125,7 @@ class Conv1dCallback:
 
 @cocotb.test
 async def test_a(dut):
-    """cocotb test for AXIS cordic"""
+    """cocotb test for AXI-Stream conv1d"""
     scoreboard = Scoreboard(dut, fail_immediately=False)
 
     # Integer-like Conv1d: use float weights with integer values and integer inputs
