@@ -1,14 +1,10 @@
 import cocotb
-import os
-import sys
-from pathlib import Path
 import random
 from collections import deque
 from cocotb.clock import Clock
 from cocotb.triggers import (
     ClockCycles,
 )
-from cocotb_tools.runner import get_runner
 import torch
 from torch import nn, Tensor
 from sim.bus.axis import AXIS_Testbench
