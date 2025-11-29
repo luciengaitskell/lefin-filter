@@ -200,6 +200,9 @@
           "PSU_MIO_35_POLARITY": {
             "value": "Default"
           },
+          "PSU_MIO_51_INPUT_TYPE": {
+            "value": "cmos"
+          },
           "PSU_MIO_76_POLARITY": {
             "value": "Default"
           },
