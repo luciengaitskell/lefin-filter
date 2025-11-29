@@ -9,6 +9,11 @@ import torch
 from torch import nn, Tensor
 from sim.bus.axis import AXIS_Testbench
 from sim.util.sim import build_and_run_sim
+from sim.util.torch import (
+    int8_torch_to_packed,
+    packed_to_int8_torch,
+    packed_to_long_torch,
+)
 
 
 async def reset(clk, rst, cycles_held=3, polarity=1):
@@ -22,35 +27,6 @@ C_S00_AXIS_TDATA_WIDTH = 32
 INPUT_BIT_WIDTH = 8
 CHANNEL_OUT_COUNT = 2
 WRITE_ITER = 11
-
-
-def int8_torch_to_packed(value: Tensor) -> int:
-    assert value.dtype == torch.int8, "Input tensor must be of dtype int8"
-    packed = 0
-    for i, v in enumerate(value):
-        packed |= (int(v.item()) & 0xFF) << (i * 8)
-    return packed
-
-
-def packed_to_int8_torch(value: int, length: int) -> Tensor:
-    values = []
-    for i in range(length):
-        byte = (value >> (i * 8)) & 0xFF
-        if byte >= 0x80:
-            byte -= 0x100
-        values.append(byte)
-    return torch.tensor(values, dtype=torch.int8)
-
-
-def packed_to_long_torch(value: int, value_bit_width: int, length: int) -> Tensor:
-    values = []
-    for i in range(length):
-        byte = (value >> (i * value_bit_width)) & ((1 << value_bit_width) - 1)
-        sign_bit = 1 << (value_bit_width - 1)
-        if byte & sign_bit:
-            byte -= 1 << value_bit_width
-        values.append(byte)
-    return torch.tensor(values, dtype=torch.long)
 
 
 class Conv1dTestbench(AXIS_Testbench):
