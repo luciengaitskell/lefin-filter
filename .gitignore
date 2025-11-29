@@ -14,7 +14,7 @@ sim_build/
 *.jou
 vivado*.str
 vivado/
-bd/*.bda
-bd/*.bxml
-bd/*.ui
-bd/*.xml
+bd/**/*.bda
+bd/**/*.bxml
+bd/**/*.ui
+bd/**/*.xml
