@@ -1,5 +1,3 @@
-`include "../util/connector.sv"
-
 package conv1d;
   function automatic int calculate_intermediate_bit_width(int input_bit_width,
                                                           int weight_bit_width);
@@ -22,8 +20,8 @@ module conv1d_layer #(
     localparam integer OUTPUT_BIT_WIDTH = conv1d::calculate_output_bit_width(
         INTERMEDIATE_BIT_WIDTH, KERNEL_WIDTH
     ),
-    parameter logic_style STAGE_1_MULT = COMBINATIONAL,
-    parameter logic_style STAGE_2_ADD = COMBINATIONAL
+    parameter integer STAGE_1_MULT = 0,  // COMBINATIONAL
+    parameter integer STAGE_2_ADD = 0 // COMBINATIONAL
 ) (
     input wire clk,
     input wire signed [INPUT_BIT_WIDTH-1:0] inputs[0:KERNEL_WIDTH-1],

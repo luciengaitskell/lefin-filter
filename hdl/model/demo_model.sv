@@ -1,6 +1,3 @@
-`include "../nn/axis_conv1d.sv"
-
-
 module demo_model #(
     parameter integer C_S00_AXIS_TDATA_WIDTH = 32,
     parameter integer INPUT_BIT_WIDTH = 8
@@ -162,6 +159,10 @@ module demo_model #(
       .m00_axis_tdata (m00_axis_tdata)
   );
 
+    (* keep = "true" *) logic classification_raw;
+
+    assign classification_raw = ^axis_conv1d.m00_axis_tdata;
+
   assign m00_axis_tready = 1'b1;
-  assign classification  = &axis_conv1d.m00_axis_tdata;
+  assign classification  = classification_raw;
 endmodule

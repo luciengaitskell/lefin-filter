@@ -36,7 +36,6 @@
     ) model_impl (
           .aclk           (aclk),
           .aresetn        (aresetn),
-          .weights        (weights),
           .s00_axis_tlast (s00_axis_tlast),
           .s00_axis_tvalid(s00_axis_tvalid),
           .s00_axis_tdata (s00_axis_tdata),

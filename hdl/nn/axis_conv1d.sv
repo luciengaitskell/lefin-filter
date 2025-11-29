@@ -1,5 +1,3 @@
-`include "./conv1d.sv"
-
 /*
 conv1d built for an AXI4-Stream interface.
 
@@ -102,8 +100,8 @@ module axis_conv1d #(
           .WEIGHT_BIT_WIDTH(WEIGHT_BIT_WIDTH),
           .KERNEL_WIDTH(KERNEL_WIDTH),
           .CHANNEL_OUT_COUNT(CHANNEL_OUT_COUNT),
-          .STAGE_1_MULT(COMBINATIONAL),
-          .STAGE_2_ADD(COMBINATIONAL)
+          .STAGE_1_MULT(0),  // COMBINATIONAL
+          .STAGE_2_ADD(0)   // COMBINATIONAL
       ) conv1d_parallel (
           .clk             (aclk),
           .inputs          (inputs[i+:KERNEL_WIDTH]),

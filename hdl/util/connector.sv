@@ -1,11 +1,11 @@
-typedef enum int {
-  COMBINATIONAL = 0,
-  SEQUENTIAL = 1
-} logic_style;
+// typedef enum int {
+//   COMBINATIONAL = 0,
+//   SEQUENTIAL = 1
+// } logic_style;
 
 
 module connector #(
-    parameter logic_style connectivity = COMBINATIONAL,
+    parameter integer connectivity = 0,
     parameter integer WIDTH = 8
 ) (
     input wire clk,
@@ -17,13 +17,13 @@ module connector #(
 
   generate
     case (connectivity)
-      COMBINATIONAL: begin : comb_connect
+      0: begin : comb_connect // COMBINATIONAL
         always_comb begin
           out = in;
           out_valid = in_valid;
         end
       end
-      SEQUENTIAL: begin : seq_connect
+      1: begin : seq_connect
         always_ff @(posedge clk) begin
           out <= in;
           out_valid <= in_valid;

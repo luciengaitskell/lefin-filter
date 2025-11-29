@@ -122,7 +122,7 @@
         <spirit:parameters>
           <spirit:parameter>
             <spirit:name>viewChecksum</spirit:name>
-            <spirit:value>d9477c91</spirit:value>
+            <spirit:value>fff549af</spirit:value>
           </spirit:parameter>
         </spirit:parameters>
       </spirit:view>
@@ -138,7 +138,7 @@
         <spirit:parameters>
           <spirit:parameter>
             <spirit:name>viewChecksum</spirit:name>
-            <spirit:value>d9477c91</spirit:value>
+            <spirit:value>fff549af</spirit:value>
           </spirit:parameter>
         </spirit:parameters>
       </spirit:view>
@@ -313,11 +313,6 @@
     <spirit:fileSet>
       <spirit:name>xilinx_verilogsynthesis_view_fileset</spirit:name>
       <spirit:file>
-        <spirit:name>hdl/model_demo.v</spirit:name>
-        <spirit:fileType>verilogSource</spirit:fileType>
-        <spirit:userFileType>CHECKSUM_5553b158</spirit:userFileType>
-      </spirit:file>
-      <spirit:file>
         <spirit:name>../../hdl/nn/conv1d.sv</spirit:name>
         <spirit:fileType>systemVerilogSource</spirit:fileType>
       </spirit:file>
@@ -334,13 +329,14 @@
         <spirit:fileType>systemVerilogSource</spirit:fileType>
         <spirit:userFileType>CHECKSUM_6b851d6d</spirit:userFileType>
       </spirit:file>
-    </spirit:fileSet>
-    <spirit:fileSet>
-      <spirit:name>xilinx_verilogbehavioralsimulation_view_fileset</spirit:name>
       <spirit:file>
         <spirit:name>hdl/model_demo.v</spirit:name>
         <spirit:fileType>verilogSource</spirit:fileType>
+        <spirit:userFileType>CHECKSUM_589e62e9</spirit:userFileType>
       </spirit:file>
+    </spirit:fileSet>
+    <spirit:fileSet>
+      <spirit:name>xilinx_verilogbehavioralsimulation_view_fileset</spirit:name>
       <spirit:file>
         <spirit:name>../../hdl/nn/conv1d.sv</spirit:name>
         <spirit:fileType>systemVerilogSource</spirit:fileType>
@@ -356,6 +352,10 @@
       <spirit:file>
         <spirit:name>../../hdl/model/demo_model.sv</spirit:name>
         <spirit:fileType>systemVerilogSource</spirit:fileType>
+      </spirit:file>
+      <spirit:file>
+        <spirit:name>hdl/model_demo.v</spirit:name>
+        <spirit:fileType>verilogSource</spirit:fileType>
       </spirit:file>
     </spirit:fileSet>
     <spirit:fileSet>
@@ -404,13 +404,13 @@
         <xilinx:taxonomy>AXI_Peripheral</xilinx:taxonomy>
       </xilinx:taxonomies>
       <xilinx:displayName>model_demo_v1.0</xilinx:displayName>
-      <xilinx:coreRevision>7</xilinx:coreRevision>
-      <xilinx:coreCreationDateTime>2025-11-29T19:07:17Z</xilinx:coreCreationDateTime>
+      <xilinx:coreRevision>13</xilinx:coreRevision>
+      <xilinx:coreCreationDateTime>2025-11-29T20:55:03Z</xilinx:coreCreationDateTime>
     </xilinx:coreExtensions>
     <xilinx:packagingInfo>
       <xilinx:xilinxVersion>2025.1</xilinx:xilinxVersion>
       <xilinx:checksum xilinx:scope="busInterfaces" xilinx:value="6eb2e0ec"/>
-      <xilinx:checksum xilinx:scope="fileGroups" xilinx:value="54bd7efd"/>
+      <xilinx:checksum xilinx:scope="fileGroups" xilinx:value="18bc58d9"/>
       <xilinx:checksum xilinx:scope="ports" xilinx:value="46c2a082"/>
       <xilinx:checksum xilinx:scope="hdlParameters" xilinx:value="dfe75133"/>
       <xilinx:checksum xilinx:scope="parameters" xilinx:value="68971da6"/>
