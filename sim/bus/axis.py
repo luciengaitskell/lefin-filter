@@ -1,4 +1,5 @@
 import os
+from collections import deque
 from cocotb.triggers import (
     RisingEdge,
     FallingEdge,
@@ -7,6 +8,7 @@ from cocotb.triggers import (
 )
 from cocotb_bus.drivers import BusDriver
 from cocotb_bus.monitors import BusMonitor
+from cocotb_bus.scoreboard import Scoreboard
 
 test_file = os.path.basename(__file__).replace(".py", "")
 
@@ -46,17 +48,17 @@ class AXIS_Monitor(BusMonitor):
             valid = self.bus.axis_tvalid.value
             ready = self.bus.axis_tready.value
             last = self.bus.axis_tlast.value
-            data = self.bus.axis_tdata.value  # .signed_integer
+            data = self.bus.axis_tdata.value  # .to_signed()
             if valid and ready:
                 self.transactions += 1
                 thing = dict(
-                    data=data.signed_integer,
+                    data=data.to_signed(),
                     last=last,
                     name=self.name,
                     count=self.transactions,
                 )
                 self.dut._log.info(f"{self.name}: {thing}")
-                self._recv(data.signed_integer)
+                self._recv(data.to_signed())
 
 
 class AXIS_Driver(BusDriver):
@@ -171,3 +173,33 @@ class S_AXIS_Driver(BusDriver):
             self.bus.axis_tready.value = 0
         else:
             raise ValueError(f"Unknown command {value}")
+
+class AXIS_Testbench:
+    def __init__(self, dut, **kwargs):
+        self.dut = dut
+        self.scoreboard = Scoreboard(dut, fail_immediately=False)
+        self.scoreboard_queue: deque = deque()
+        self.data_in = []
+        self.data_out = []
+
+        self.inm = AXIS_Monitor(dut, "s00", dut.aclk, callback=self.in_callback)
+        self.ind = M_AXIS_Driver(dut, "s00", dut.aclk)  # M driver for S port
+
+        self.outm = AXIS_Monitor(dut, "m00", dut.aclk, callback=self.out_callback)
+        self.outd = S_AXIS_Driver(dut, "m00", dut.aclk)  # S driver for M port
+
+        self.scoreboard.add_interface(
+            self.outm,
+            self.scoreboard_queue,
+            compare_fn=self.compare_fn,
+        )
+
+    def compare_fn(self, result):
+        expected_result = self.scoreboard_queue.popleft()
+        return result == expected_result
+
+    def in_callback(self, data):
+        self.data_in.append(data)
+
+    def out_callback(self, result):
+        self.data_out.append(result)

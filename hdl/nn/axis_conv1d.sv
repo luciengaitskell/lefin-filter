@@ -21,20 +21,24 @@ which avoids the need for the complex buffering.
 module axis_conv1d #(
     parameter integer C_S00_AXIS_TDATA_WIDTH = 32,
     parameter integer KERNEL_WIDTH = 25,  // FIXME: this must be larger than INPUT_WIDTH
+    parameter integer CHANNEL_OUT_COUNT = 1,
     parameter integer STRIDE = 1,
     parameter integer INPUT_BIT_WIDTH = 8,
     parameter integer WEIGHT_BIT_WIDTH = 8,
     localparam integer INPUT_WIDTH = C_S00_AXIS_TDATA_WIDTH / INPUT_BIT_WIDTH,
     localparam integer NUM_PARALLEL_CONVS = ((INPUT_WIDTH) / STRIDE),
-    // TODO: Would be nice if these weren't defined twice (also in conv1d.sv)
-    localparam integer INTERMEDIATE_BIT_WIDTH = INPUT_BIT_WIDTH + WEIGHT_BIT_WIDTH,
-    localparam integer OUTPUT_BIT_WIDTH = INTERMEDIATE_BIT_WIDTH + (KERNEL_WIDTH - 1),
-    localparam integer C_M00_AXIS_TDATA_WIDTH = OUTPUT_BIT_WIDTH * NUM_PARALLEL_CONVS
+    localparam integer INTERMEDIATE_BIT_WIDTH = conv1d::calculate_intermediate_bit_width(
+        INPUT_BIT_WIDTH, WEIGHT_BIT_WIDTH
+    ),
+    localparam integer OUTPUT_BIT_WIDTH = conv1d::calculate_output_bit_width(
+        INTERMEDIATE_BIT_WIDTH, KERNEL_WIDTH
+    ),
+    localparam integer C_M00_AXIS_TDATA_WIDTH = OUTPUT_BIT_WIDTH * NUM_PARALLEL_CONVS * CHANNEL_OUT_COUNT
 ) (
 
     input wire aclk,
     input wire aresetn,
-    input wire signed [WEIGHT_BIT_WIDTH-1:0] weights[0:(KERNEL_WIDTH-1)],
+    input wire signed [WEIGHT_BIT_WIDTH-1:0] weights[0:CHANNEL_OUT_COUNT-1][0:(KERNEL_WIDTH-1)],
 
     // Ports of Axi Slave Bus Interface S00_AXIS
     input wire s00_axis_tlast,
@@ -89,17 +93,18 @@ module axis_conv1d #(
     end
   end
 
-  logic signed [OUTPUT_BIT_WIDTH-1:0] activations[0:NUM_PARALLEL_CONVS-1];
+  logic signed [OUTPUT_BIT_WIDTH-1:0] activations[0:NUM_PARALLEL_CONVS-1][0:CHANNEL_OUT_COUNT-1];
 
   generate
     for (genvar i = 0; i < NUM_PARALLEL_CONVS; i++) begin : parallel_convs
-      conv1d #(
+      conv1d_layer #(
           .INPUT_BIT_WIDTH(INPUT_BIT_WIDTH),
           .WEIGHT_BIT_WIDTH(WEIGHT_BIT_WIDTH),
           .KERNEL_WIDTH(KERNEL_WIDTH),
+          .CHANNEL_OUT_COUNT(CHANNEL_OUT_COUNT),
           .STAGE_1_MULT(COMBINATIONAL),
           .STAGE_2_ADD(COMBINATIONAL)
-      ) conv1d (
+      ) conv1d_parallel (
           .clk             (aclk),
           .inputs          (inputs[i+:KERNEL_WIDTH]),
           .inputs_valid    (s00_axis_tvalid && previous_inputs_filled),
@@ -135,7 +140,9 @@ module axis_conv1d #(
   always_comb begin
     m00_axis_tdata = '0;
     for (integer i = 0; i < NUM_PARALLEL_CONVS; i++) begin
-      m00_axis_tdata[OUTPUT_BIT_WIDTH*i+:OUTPUT_BIT_WIDTH] = activations[i];
+      for (integer channel_out = 0; channel_out < CHANNEL_OUT_COUNT; channel_out++) begin
+        m00_axis_tdata[OUTPUT_BIT_WIDTH*(channel_out*NUM_PARALLEL_CONVS + i) +: OUTPUT_BIT_WIDTH] = activations[i][channel_out];
+      end
     end
     m00_axis_tvalid = m00_axis_tstrb[0];
     m00_axis_tlast  = s00_axis_tlast; // FIXME: this is only correct for KERNEL_WIDTH == INPUT_WIDTH + 1
