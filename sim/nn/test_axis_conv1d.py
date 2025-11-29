@@ -132,7 +132,7 @@ async def test_a(dut):
     with torch.no_grad():
         layer = nn.Conv1d(
             in_channels=1,
-            out_channels=2,
+            out_channels=CHANNEL_OUT_COUNT,
             kernel_size=KERNEL_WIDTH,
             stride=1,
             padding=0,
