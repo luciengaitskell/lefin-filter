@@ -9,8 +9,7 @@ from cocotb.triggers import (
     ClockCycles,
 )
 from cocotb_tools.runner import get_runner
-from cocotb_bus.scoreboard import Scoreboard
-from sim.bus.axis import AXIS_Monitor, M_AXIS_Driver, S_AXIS_Driver
+from sim.bus.axis_testbench import AXIS_Testbench
 import torch
 from torch import nn, Tensor
 
@@ -60,14 +59,12 @@ def packed_to_long_torch(value: int, value_bit_width: int, length: int) -> Tenso
     return torch.tensor(values, dtype=torch.long)
 
 
-class Conv1dCallback:
-    def __init__(self, dut, scoreboard, layer):
-        self.dut = dut
-        self.scoreboard = scoreboard
-        self.data_in = []
-        self.data_out = []  # contains list of expected outputs (Growing)
+class Conv1dTestbench(AXIS_Testbench):
+    def __init__(self, dut, layer, **kwargs):
+        super().__init__(dut, **kwargs)
+        self.scoreboard_queue: deque[tuple[Tensor, Tensor]]
+
         self.expected_data_out = []  # contains list of expected outputs (Growing)
-        self.scoreboard_queue: deque[tuple[Tensor, Tensor]] = deque()
         self.layer: nn.Conv1d = layer
         assert self.layer.in_channels == 1, "Only single channel supported"
         assert self.layer.stride[0] == 1, "Only stride 1 supported"
@@ -76,7 +73,7 @@ class Conv1dCallback:
 
     def in_callback(self, raw_input):
         input_values = packed_to_int8_torch(raw_input, self.dut.INPUT_WIDTH.value)
-        self.data_in.append(input_values)
+        super().in_callback(input_values)
 
         if self.input_buffer is not None:
             input_values = torch.cat((self.input_buffer, input_values), dim=0)
@@ -88,9 +85,6 @@ class Conv1dCallback:
             self.scoreboard_queue.append((input_values, expected_result))
 
         self.input_buffer = input_values[-(self.layer.kernel_size[0] - 1) :]
-
-    def out_callback(self, result):
-        self.data_out.append(result)
 
     def compare_fn(self, result):
         """Compare the received transaction with the expected output."""
@@ -126,8 +120,6 @@ class Conv1dCallback:
 @cocotb.test
 async def test_a(dut):
     """cocotb test for AXI-Stream conv1d"""
-    scoreboard = Scoreboard(dut, fail_immediately=False)
-
     # Integer-like Conv1d: use float weights with integer values and integer inputs
     with torch.no_grad():
         layer = nn.Conv1d(
@@ -144,17 +136,9 @@ async def test_a(dut):
         )
         layer.weight.copy_(int_kernel.float().view_as(layer.weight))
         dut.weights.value = int_kernel.tolist()
-    callback = Conv1dCallback(dut, scoreboard, layer=layer)
-    inm = AXIS_Monitor(dut, "s00", dut.aclk, callback=callback.in_callback)
-    outm = AXIS_Monitor(dut, "m00", dut.aclk, callback=callback.out_callback)
-    ind = M_AXIS_Driver(dut, "s00", dut.aclk)  # M driver for S port
-    outd = S_AXIS_Driver(dut, "m00", dut.aclk)  # S driver for M port
 
-    scoreboard.add_interface(
-        outm,
-        callback.scoreboard_queue,
-        compare_fn=callback.compare_fn,
-    )
+    tb = Conv1dTestbench(dut, layer=layer)
+
     cocotb.start_soon(Clock(dut.aclk, 10, unit="ns").start())
     await reset(dut.aclk, dut.aresetn, 2, 0)
 
@@ -174,26 +158,30 @@ async def test_a(dut):
             (dut.INPUT_WIDTH.value,),
             dtype=torch.int8,
         )
-        ind.append(
+        tb.ind.append(
             {
                 "type": "write_single",
                 "contents": {"data": int8_torch_to_packed(x), "last": 0},
             }
         )
-        ind.append({"type": "pause", "duration": random.randint(1, 6)})
-    # ind.append({"type": "write_burst", "contents": {"data": list(...)}})
-    # ind.append({"type": "pause", "duration": 2})  # end with pause
+        tb.ind.append({"type": "pause", "duration": random.randint(1, 6)})
+    # tb.ind.append({"type": "write_burst", "contents": {"data": list(...)}})
+    # tb.ind.append({"type": "pause", "duration": 2})  # end with pause
 
     # feed the driver on the S Side:
     # always be ready to receive data:
-    outd.append({"type": "read", "duration": EXPECTED_READ_TRANSACTIONS})
+    tb.outd.append({"type": "read", "duration": EXPECTED_READ_TRANSACTIONS})
 
     await ClockCycles(dut.aclk, 3500)
-    assert inm.transactions == outm.transactions + int(
+    assert tb.inm.transactions == tb.outm.transactions + int(
         dut.CYCLES_TO_FILL_PREVIOUS_INPUTS.value
     ), "Transaction Count doesn't match! :-/"
-    print(f"in transactions: {inm.transactions}, out transactions: {outm.transactions}")
-    assert scoreboard.errors == 0, f"Scoreboard found {scoreboard.errors} errors! :-/"
+    print(
+        f"in transactions: {tb.inm.transactions}, out transactions: {tb.outm.transactions}"
+    )
+    assert tb.scoreboard.errors == 0, (
+        f"Scoreboard found {tb.scoreboard.errors} errors! :-/"
+    )
     await ClockCycles(dut.aclk, 20)
 
 
