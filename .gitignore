@@ -25,3 +25,4 @@ bd/*/synth/**
 bd/*/design_*_ooc.xdc
 bd/*/hw_handoff/**
 bd/*/ipshared/**
+.Xil/
