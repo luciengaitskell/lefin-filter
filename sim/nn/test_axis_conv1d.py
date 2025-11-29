@@ -9,7 +9,7 @@ from cocotb.triggers import (
     ClockCycles,
 )
 from cocotb_tools.runner import get_runner
-from sim.bus.axis_testbench import AXIS_Testbench
+from sim.bus.axis import AXIS_Testbench
 import torch
 from torch import nn, Tensor
 
