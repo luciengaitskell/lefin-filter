@@ -70,7 +70,6 @@ class Conv1dCallback:
         self.scoreboard_queue: deque[tuple[Tensor, Tensor]] = deque()
         self.layer: nn.Conv1d = layer
         assert self.layer.in_channels == 1, "Only single channel supported"
-        # assert self.layer.out_channels == 1, "Only single channel supported"
         assert self.layer.stride[0] == 1, "Only stride 1 supported"
         assert self.layer.padding[0] == 0, "Only no padding supported"
         self.input_buffer = None
@@ -141,7 +140,7 @@ async def test_a(dut):
         )
         int_kernel = torch.tensor([[1, 0, 4, 0, 0], [0, 1, 0, -1, 0]], dtype=torch.int8)
         assert int_kernel.shape == (layer.out_channels, KERNEL_WIDTH), (
-            f"Kernel shape mismatch {layer.weight.shape}"
+            f"Kernel shape mismatch {int_kernel.shape} | {layer.weight.shape}"
         )
         layer.weight.copy_(int_kernel.float().view_as(layer.weight))
         dut.weights.value = int_kernel.tolist()
