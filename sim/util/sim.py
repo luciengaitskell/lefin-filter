@@ -2,7 +2,14 @@ import os
 import sys
 from pathlib import Path
 
+from cocotb.triggers import ClockCycles
 from cocotb_tools.runner import get_runner
+
+
+async def reset(clk, rst, cycles_held=3, polarity=1):
+    rst.value = polarity
+    await ClockCycles(clk, cycles_held)
+    rst.value = not polarity
 
 
 def build_and_run_sim(

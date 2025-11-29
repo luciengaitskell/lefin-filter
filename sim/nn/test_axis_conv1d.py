@@ -2,24 +2,16 @@ import cocotb
 import random
 from collections import deque
 from cocotb.clock import Clock
-from cocotb.triggers import (
-    ClockCycles,
-)
+from cocotb.triggers import ClockCycles
 import torch
 from torch import nn, Tensor
 from sim.bus.axis import AXIS_Testbench
-from sim.util.sim import build_and_run_sim
+from sim.util.sim import build_and_run_sim, reset
 from sim.util.torch import (
     int8_torch_to_packed,
     packed_to_int8_torch,
     packed_to_long_torch,
 )
-
-
-async def reset(clk, rst, cycles_held=3, polarity=1):
-    rst.value = polarity
-    await ClockCycles(clk, cycles_held)
-    rst.value = not polarity
 
 
 KERNEL_WIDTH = 5
