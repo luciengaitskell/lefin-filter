@@ -27,6 +27,7 @@ async def reset(clk, rst, cycles_held=3, polarity=1):
 KERNEL_WIDTH = 5
 C_S00_AXIS_TDATA_WIDTH = 32
 INPUT_BIT_WIDTH = 8
+CHANNEL_OUT_COUNT = 2
 WRITE_ITER = 11
 
 
@@ -69,7 +70,6 @@ class Conv1dCallback:
         self.scoreboard_queue: deque[tuple[Tensor, Tensor]] = deque()
         self.layer: nn.Conv1d = layer
         assert self.layer.in_channels == 1, "Only single channel supported"
-        assert self.layer.out_channels == 1, "Only single channel supported"
         assert self.layer.stride[0] == 1, "Only stride 1 supported"
         assert self.layer.padding[0] == 0, "Only no padding supported"
         self.input_buffer = None
@@ -82,7 +82,7 @@ class Conv1dCallback:
             input_values = torch.cat((self.input_buffer, input_values), dim=0)
             conv_input = input_values.to(torch.float32).view(1, 1, -1)
             conv_output = self.layer(conv_input)
-            conv_output = conv_output[0, 0, : self.dut.NUM_PARALLEL_CONVS.value]
+            conv_output = conv_output[0, :, : self.dut.NUM_PARALLEL_CONVS.value]
             expected_result = conv_output.round().to(torch.long)
             self.expected_data_out.append(expected_result)
             self.scoreboard_queue.append((input_values, expected_result))
@@ -100,7 +100,13 @@ class Conv1dCallback:
         result = packed_to_long_torch(
             result,
             int(self.dut.OUTPUT_BIT_WIDTH.value),
-            int(self.dut.NUM_PARALLEL_CONVS.value),
+            int(self.dut.NUM_PARALLEL_CONVS.value)
+            * int(self.dut.CHANNEL_OUT_COUNT.value),
+        ).view(
+            (
+                self.dut.CHANNEL_OUT_COUNT.value,
+                self.dut.NUM_PARALLEL_CONVS.value,
+            )
         )
 
         input_vals, expected_result = self.scoreboard_queue.popleft()
@@ -126,14 +132,16 @@ async def test_a(dut):
     with torch.no_grad():
         layer = nn.Conv1d(
             in_channels=1,
-            out_channels=1,
+            out_channels=CHANNEL_OUT_COUNT,
             kernel_size=KERNEL_WIDTH,
             stride=1,
             padding=0,
             bias=False,
         )
-        # Set kernel to [1, 2, 3, 4, 5] while respecting Conv1d weight shape (out, in, k)
-        int_kernel = torch.tensor([1, 0, 0, 0, 0], dtype=torch.int8)
+        int_kernel = torch.tensor([[1, 0, 4, 0, 0], [0, 1, 0, -1, 0]], dtype=torch.int8)
+        assert int_kernel.shape == (layer.out_channels, KERNEL_WIDTH), (
+            f"Kernel shape mismatch {int_kernel.shape} | {layer.weight.shape}"
+        )
         layer.weight.copy_(int_kernel.float().view_as(layer.weight))
         dut.weights.value = int_kernel.tolist()
     callback = Conv1dCallback(dut, scoreboard, layer=layer)
@@ -207,6 +215,7 @@ def conv1d_runner():
         "KERNEL_WIDTH": KERNEL_WIDTH,
         "C_S00_AXIS_TDATA_WIDTH": C_S00_AXIS_TDATA_WIDTH,
         "INPUT_BIT_WIDTH": INPUT_BIT_WIDTH,
+        "CHANNEL_OUT_COUNT": CHANNEL_OUT_COUNT,
     }
     sys.path.append(str(proj_path / "sim" / "nn"))
     runner = get_runner(sim)
