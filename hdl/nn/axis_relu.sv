@@ -1,8 +1,8 @@
 
 module axis_relu #(
     parameter integer C_S00_AXIS_TDATA_WIDTH = 32,
-    parameter integer CHANNEL_COUNT = 1,
     parameter integer BIT_WIDTH = 8,
+    parameter integer CHANNEL_COUNT = 1,
     localparam integer NUM_VALUES = C_S00_AXIS_TDATA_WIDTH / BIT_WIDTH,
     localparam integer WIDTH = C_S00_AXIS_TDATA_WIDTH / (CHANNEL_COUNT * BIT_WIDTH),
     localparam integer C_M00_AXIS_TDATA_WIDTH = C_S00_AXIS_TDATA_WIDTH

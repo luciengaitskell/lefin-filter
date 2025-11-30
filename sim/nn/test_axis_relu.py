@@ -16,10 +16,19 @@ from sim.util.torch import (
 
 C_S00_AXIS_TDATA_WIDTH = 32
 BIT_WIDTH = 8
+CHANNEL_COUNT = 2
 NUM_ITER = 11
 
 
 class ReLUTestbench(AXIS_Testbench):
+    def view_tensor(self, tensor: Tensor) -> Tensor:
+        return tensor.view(
+            (
+                self.dut.CHANNEL_COUNT.value,
+                self.dut.WIDTH.value,
+            )
+        )
+
     def __init__(self, dut, **kwargs):
         super().__init__(dut, **kwargs)
         self.scoreboard_queue: deque[tuple[Tensor, Tensor]]
@@ -28,7 +37,9 @@ class ReLUTestbench(AXIS_Testbench):
         self.input_buffer = None
 
     def in_callback(self, raw_input):
-        input_values = packed_to_int8_torch(raw_input, self.dut.WIDTH.value)
+        input_values = self.view_tensor(
+            packed_to_int8_torch(raw_input, self.dut.NUM_VALUES.value)
+        )
         super().in_callback(input_values)
 
         expected_result = nn.functional.relu(input_values).to(torch.long)
@@ -41,14 +52,11 @@ class ReLUTestbench(AXIS_Testbench):
         if not self.scoreboard_queue:
             return False
 
-        result = packed_to_long_torch(
-            result,
-            int(self.dut.BIT_WIDTH.value),
-            int(self.dut.CHANNEL_COUNT.value) * int(self.dut.WIDTH.value),
-        ).view(
-            (
-                self.dut.CHANNEL_COUNT.value,
-                self.dut.WIDTH.value,
+        result = self.view_tensor(
+            packed_to_long_torch(
+                result,
+                int(self.dut.BIT_WIDTH.value),
+                int(self.dut.CHANNEL_COUNT.value) * int(self.dut.WIDTH.value),
             )
         )
 
@@ -120,5 +128,6 @@ if __name__ == "__main__":
         parameters={
             "C_S00_AXIS_TDATA_WIDTH": C_S00_AXIS_TDATA_WIDTH,
             "BIT_WIDTH": BIT_WIDTH,
+            "CHANNEL_COUNT": CHANNEL_COUNT,
         },
     )
