@@ -1,3 +1,4 @@
 {
-  "flags": "-f .slang/server.f"
+  "flags": "-f config/hdl.f",
+  "indexGlobs": ["./hdl/**/*.sv"]
  }

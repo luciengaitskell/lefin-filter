@@ -1,6 +1,5 @@
-`include "connector.sv"
 
-package conv1d;
+package conv1d_pkg;
   function automatic int calculate_intermediate_bit_width(int input_bit_width,
                                                           int weight_bit_width);
     return input_bit_width + weight_bit_width;
@@ -10,20 +9,19 @@ package conv1d;
   endfunction
 endpackage
 
-/* verilator lint_off DECLFILENAME */
-module conv1d_layer #(
+module conv1d #(
     parameter integer INPUT_BIT_WIDTH = 8,
     parameter integer WEIGHT_BIT_WIDTH = 8,
     parameter integer KERNEL_WIDTH = 3,
     parameter integer CHANNEL_OUT_COUNT = 1,
-    localparam integer INTERMEDIATE_BIT_WIDTH = conv1d::calculate_intermediate_bit_width(
+    localparam integer INTERMEDIATE_BIT_WIDTH = conv1d_pkg::calculate_intermediate_bit_width(
         INPUT_BIT_WIDTH, WEIGHT_BIT_WIDTH
     ),
-    localparam integer OUTPUT_BIT_WIDTH = conv1d::calculate_output_bit_width(
+    localparam integer OUTPUT_BIT_WIDTH = conv1d_pkg::calculate_output_bit_width(
         INTERMEDIATE_BIT_WIDTH, KERNEL_WIDTH
     ),
-    parameter integer STAGE_1_MULT = 0,  // COMBINATIONAL
-    parameter integer STAGE_2_ADD = 0 // COMBINATIONAL
+    parameter connector_pkg::logic_style STAGE_1_MULT = connector_pkg::COMBINATIONAL,
+    parameter connector_pkg::logic_style STAGE_2_ADD = connector_pkg::COMBINATIONAL
 ) (
     input wire clk,
     input wire signed [INPUT_BIT_WIDTH-1:0] inputs[0:KERNEL_WIDTH-1],
@@ -82,4 +80,3 @@ module conv1d_layer #(
 
   assign activation_valid = &stage_2_valid;
 endmodule
-/* verilator lint_on DECLFILENAME */

@@ -1,4 +1,3 @@
-`include "conv1d.sv"
 /*
 conv1d built for an AXI4-Stream interface.
 
@@ -26,10 +25,10 @@ module axis_conv1d #(
     parameter integer WEIGHT_BIT_WIDTH = 8,
     localparam integer INPUT_WIDTH = C_S00_AXIS_TDATA_WIDTH / INPUT_BIT_WIDTH,
     localparam integer NUM_PARALLEL_CONVS = ((INPUT_WIDTH) / STRIDE),
-    localparam integer INTERMEDIATE_BIT_WIDTH = conv1d::calculate_intermediate_bit_width(
+    localparam integer INTERMEDIATE_BIT_WIDTH = conv1d_pkg::calculate_intermediate_bit_width(
         INPUT_BIT_WIDTH, WEIGHT_BIT_WIDTH
     ),
-    localparam integer OUTPUT_BIT_WIDTH = conv1d::calculate_output_bit_width(
+    localparam integer OUTPUT_BIT_WIDTH = conv1d_pkg::calculate_output_bit_width(
         INTERMEDIATE_BIT_WIDTH, KERNEL_WIDTH
     ),
     localparam integer C_M00_AXIS_TDATA_WIDTH = OUTPUT_BIT_WIDTH * NUM_PARALLEL_CONVS * CHANNEL_OUT_COUNT
@@ -96,13 +95,13 @@ module axis_conv1d #(
 
   generate
     for (genvar i = 0; i < NUM_PARALLEL_CONVS; i++) begin : parallel_convs
-      conv1d_layer #(
+      conv1d #(
           .INPUT_BIT_WIDTH(INPUT_BIT_WIDTH),
           .WEIGHT_BIT_WIDTH(WEIGHT_BIT_WIDTH),
           .KERNEL_WIDTH(KERNEL_WIDTH),
           .CHANNEL_OUT_COUNT(CHANNEL_OUT_COUNT),
-          .STAGE_1_MULT(0),  // COMBINATIONAL
-          .STAGE_2_ADD(0)   // COMBINATIONAL
+          .STAGE_1_MULT(connector_pkg::COMBINATIONAL),
+          .STAGE_2_ADD(connector_pkg::COMBINATIONAL)
       ) conv1d_parallel (
           .clk             (aclk),
           .inputs          (inputs[i+:KERNEL_WIDTH]),
