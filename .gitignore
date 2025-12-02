@@ -13,9 +13,17 @@ sim_build/
 *.log
 *.jou
 vivado*.str
+vivado*.zip
 vivado/
 bd/**/*.bda
 bd/**/*.bxml
 bd/**/*.ui
 bd/**/*.xml
+ip_repo/edit*
 bd/*/ip/**
+bd/*/sim/**
+bd/*/synth/**
+bd/*/design_*_ooc.xdc
+bd/*/hw_handoff/**
+bd/*/ipshared/**
+.Xil/
