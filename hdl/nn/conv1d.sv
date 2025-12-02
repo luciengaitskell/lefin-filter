@@ -1,3 +1,5 @@
+`include "connector.sv"
+
 package conv1d;
   function automatic int calculate_intermediate_bit_width(int input_bit_width,
                                                           int weight_bit_width);

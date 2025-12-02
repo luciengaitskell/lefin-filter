@@ -38,15 +38,25 @@ class Conv1dTestbench(AXIS_Testbench):
         super().in_callback(input_values)
 
         if self.input_buffer is not None:
-            input_values = torch.cat((self.input_buffer, input_values), dim=0)
-            conv_input = input_values.to(torch.float32).view(1, 1, -1)
+            full_input = torch.cat((self.input_buffer, input_values), dim=0)
+        else:
+            full_input = input_values
+
+        kernel_width = self.layer.kernel_size[0]
+        num_parallel_convs = int(self.dut.NUM_PARALLEL_CONVS.value)
+
+        if full_input.numel() >= kernel_width + num_parallel_convs - 1:
+            conv_input = full_input.to(torch.float32).view(1, 1, -1)
             conv_output = self.layer(conv_input)
-            conv_output = conv_output[0, :, : self.dut.NUM_PARALLEL_CONVS.value]
+            conv_output = conv_output[0, :, :num_parallel_convs]
             expected_result = conv_output.round().to(torch.long)
             self.expected_data_out.append(expected_result)
             self.scoreboard_queue.append((input_values, expected_result))
 
-        self.input_buffer = input_values[-(self.layer.kernel_size[0] - 1) :]
+        if full_input.numel() >= kernel_width - 1:
+            self.input_buffer = full_input[-(kernel_width - 1) :]
+        else:
+            self.input_buffer = full_input
 
     def compare_fn(self, result):
         """Compare the received transaction with the expected output."""

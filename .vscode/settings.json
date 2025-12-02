@@ -1,3 +1,7 @@
 {
-    "verilog.linting.verilator.runAtFileLocation": false
+    "verilog.linting.verilator.runAtFileLocation": false,
+    "verilog.linting.verilator.includePath": [
+        "hdl/nn",
+        "hdl/util"
+    ]
 }
