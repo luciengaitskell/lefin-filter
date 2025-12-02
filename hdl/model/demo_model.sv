@@ -1,3 +1,5 @@
+`include "axis_conv1d.sv"
+
 module demo_model #(
     parameter integer C_S00_AXIS_TDATA_WIDTH = 32,
     parameter integer INPUT_BIT_WIDTH = 8
