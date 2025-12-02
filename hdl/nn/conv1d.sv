@@ -21,8 +21,8 @@ module conv1d_layer #(
     localparam integer OUTPUT_BIT_WIDTH = conv1d::calculate_output_bit_width(
         INTERMEDIATE_BIT_WIDTH, KERNEL_WIDTH
     ),
-    parameter logic_style STAGE_1_MULT = COMBINATIONAL,
-    parameter logic_style STAGE_2_ADD = COMBINATIONAL
+    parameter connector_pkg::logic_style STAGE_1_MULT = connector_pkg::COMBINATIONAL,
+    parameter connector_pkg::logic_style STAGE_2_ADD = connector_pkg::COMBINATIONAL
 ) (
     input wire clk,
     input wire signed [INPUT_BIT_WIDTH-1:0] inputs[0:KERNEL_WIDTH-1],
