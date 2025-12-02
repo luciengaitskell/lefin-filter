@@ -9,6 +9,14 @@ def int8_torch_to_packed(value: Tensor) -> int:
         packed |= (int(v.item()) & 0xFF) << (i * 8)
     return packed
 
+def long_torch_to_packed(value: Tensor, value_bit_width: int) -> int:
+    assert value.dtype == torch.long, "Input tensor must be of dtype long"
+    packed = 0
+    for i, v in enumerate(value):
+        packed |= (int(v.item()) & ((1 << value_bit_width) - 1)) << (
+            i * value_bit_width
+        )
+    return packed
 
 def packed_to_int8_torch(value: int, length: int) -> Tensor:
     values = []
