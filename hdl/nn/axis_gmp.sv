@@ -1,5 +1,5 @@
 
-module axis_conv1d #(
+module axis_gmp #(
     parameter int WIDTH = 4,
     parameter int BIT_WIDTH = 8,
     parameter int CHANNEL_COUNT = 1,
