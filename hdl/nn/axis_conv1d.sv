@@ -1,5 +1,4 @@
-`include "./conv1d.sv"
-
+`include "conv1d.sv"
 /*
 conv1d built for an AXI4-Stream interface.
 
