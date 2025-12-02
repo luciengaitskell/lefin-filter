@@ -14,7 +14,7 @@ from sim.util.torch import (
 
 
 DATA_TYPE = torch.int8
-NUM_ITER = 11
+NUM_ITER = 50
 
 
 class GMPTestbench(AXIS_Testbench):
