@@ -24,11 +24,11 @@ module axis_gmp #(
     output logic [(C_M00_AXIS_TDATA_WIDTH/BIT_WIDTH)-1:0] m00_axis_tstrb
 );
 
-  logic signed [BIT_WIDTH-1:0] inputs[0:WIDTH-1][0:CHANNEL_COUNT-1];
+  logic signed [BIT_WIDTH-1:0] inputs[0:CHANNEL_COUNT-1][0:WIDTH-1];
   always_comb begin
     for (integer i = 0; i < WIDTH; i++) begin
       for (integer channel = 0; channel < CHANNEL_COUNT; channel++) begin
-        inputs[i][channel] = s00_axis_tdata[BIT_WIDTH*(channel*WIDTH+i)+:BIT_WIDTH];
+        inputs[channel][i] = s00_axis_tdata[BIT_WIDTH*(channel*WIDTH+i)+:BIT_WIDTH];
       end
     end
   end
@@ -84,8 +84,8 @@ module axis_gmp #(
           channel_max = maximums[channel];
         end
         for (integer i = 0; i < WIDTH; i++) begin
-          if (inputs[i][channel] > channel_max) begin
-            channel_max = inputs[i][channel];
+          if (inputs[channel][i] > channel_max) begin
+            channel_max = inputs[channel][i];
           end
         end
         maximums[channel] <= channel_max;
