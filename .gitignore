@@ -13,6 +13,7 @@ sim_build/
 *.log
 *.jou
 vivado*.str
+vivado*.zip
 vivado/
 bd/**/*.bda
 bd/**/*.bxml
