@@ -1,5 +1,3 @@
-`include "axis_conv1d.sv"
-
 module demo_model #(
     parameter integer C_S00_AXIS_TDATA_WIDTH = 32,
     parameter integer INPUT_BIT_WIDTH = 8
@@ -22,10 +20,10 @@ module demo_model #(
   localparam integer WEIGHT_BIT_WIDTH = 8;
   localparam integer INPUT_WIDTH = C_S00_AXIS_TDATA_WIDTH / INPUT_BIT_WIDTH;
   localparam integer NUM_PARALLEL_CONVS = ((INPUT_WIDTH) / STRIDE);
-  localparam integer INTERMEDIATE_BIT_WIDTH = conv1d::calculate_intermediate_bit_width(
+  localparam integer INTERMEDIATE_BIT_WIDTH = conv1d_pkg::calculate_intermediate_bit_width(
      INPUT_BIT_WIDTH, WEIGHT_BIT_WIDTH
   );
-  localparam integer OUTPUT_BIT_WIDTH = conv1d::calculate_output_bit_width(
+  localparam integer OUTPUT_BIT_WIDTH = conv1d_pkg::calculate_output_bit_width(
       INTERMEDIATE_BIT_WIDTH, KERNEL_WIDTH
   );
   localparam integer C_M00_AXIS_TDATA_WIDTH = OUTPUT_BIT_WIDTH * NUM_PARALLEL_CONVS * CHANNEL_OUT_COUNT;
