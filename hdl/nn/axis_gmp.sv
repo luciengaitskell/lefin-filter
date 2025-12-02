@@ -42,16 +42,37 @@ module axis_conv1d #(
     end
   end
 
+
+  logic signed [BIT_WIDTH-1:0] maximums[0:CHANNEL_COUNT-1];
+
   assign m00_axis_tstrb  = s00_axis_tstrb;
   assign s00_axis_tready = m00_axis_tready;
   assign m00_axis_tvalid = s00_axis_tvalid;
   assign m00_axis_tlast  = s00_axis_tlast;
+  logic was_last;
 
-  always_comb begin
-    for (integer i = 0; i < WIDTH; i++) begin
-      for (integer channel = 0; channel < CHANNEL_COUNT; channel++) begin
-        outputs[i][channel] = inputs[i][channel];  // Pass-through
+  always_ff @(posedge aclk) begin
+    if (!aresetn) begin
+      was_last <= 1'b1;
+    end else begin
+      was_last <= s00_axis_tlast;
+    end
+  end
+
+  always_ff @(posedge aclk) begin
+    for (integer channel = 0; channel < CHANNEL_COUNT; channel++) begin
+      logic signed [BIT_WIDTH-1:0] channel_max;
+      if (was_last) begin
+        channel_max = '0;
+      end else begin
+        channel_max = maximums[channel];
       end
+      for (integer i = 0; i < WIDTH; i++) begin
+        if (inputs[i][channel] > channel_max) begin
+          channel_max = inputs[i][channel];
+        end
+      end
+      maximums[channel] <= channel_max;
     end
   end
 endmodule
