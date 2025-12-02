@@ -4,7 +4,7 @@ module axis_gmp #(
     parameter int BIT_WIDTH = 8,
     parameter int CHANNEL_COUNT = 1,
     localparam int C_S00_AXIS_TDATA_WIDTH = BIT_WIDTH * WIDTH * CHANNEL_COUNT,
-    localparam int C_M00_AXIS_TDATA_WIDTH = BIT_WIDTH * WIDTH * CHANNEL_COUNT
+    localparam int C_M00_AXIS_TDATA_WIDTH = BIT_WIDTH * CHANNEL_COUNT
 ) (
     input wire aclk,
     input wire aresetn,
@@ -13,7 +13,7 @@ module axis_gmp #(
     input wire s00_axis_tlast,
     s00_axis_tvalid,
     input wire [C_S00_AXIS_TDATA_WIDTH-1 : 0] s00_axis_tdata,
-    input wire [WIDTH-1:0] s00_axis_tstrb,
+    input wire [(C_S00_AXIS_TDATA_WIDTH/BIT_WIDTH)-1:0] s00_axis_tstrb,
     output logic s00_axis_tready,
 
     // Ports of Axi Master Bus Interface M00_AXIS
@@ -21,7 +21,7 @@ module axis_gmp #(
     output logic m00_axis_tvalid,
     m00_axis_tlast,
     output logic [C_M00_AXIS_TDATA_WIDTH-1 : 0] m00_axis_tdata,
-    output logic [WIDTH-1:0] m00_axis_tstrb
+    output logic [(C_M00_AXIS_TDATA_WIDTH/BIT_WIDTH)-1:0] m00_axis_tstrb
 );
 
   logic signed [BIT_WIDTH-1:0] inputs[0:WIDTH-1][0:CHANNEL_COUNT-1];
@@ -33,46 +33,63 @@ module axis_gmp #(
     end
   end
 
-  logic signed [BIT_WIDTH-1:0] outputs[0:WIDTH-1][0:CHANNEL_COUNT-1];
+  logic signed [BIT_WIDTH-1:0] maximums[0:CHANNEL_COUNT-1];
   always_comb begin
-    for (integer i = 0; i < WIDTH; i++) begin
-      for (integer channel = 0; channel < CHANNEL_COUNT; channel++) begin
-        m00_axis_tdata[BIT_WIDTH*(channel*WIDTH+i)+:BIT_WIDTH] = outputs[i][channel];
-      end
+    for (integer channel = 0; channel < CHANNEL_COUNT; channel++) begin
+      m00_axis_tdata[BIT_WIDTH*channel+:BIT_WIDTH] = maximums[channel];
     end
   end
 
 
-  logic signed [BIT_WIDTH-1:0] maximums[0:CHANNEL_COUNT-1];
+  assign m00_axis_tstrb = '1;
+  assign m00_axis_tlast = s00_axis_tlast;
+  wire m00_axis_transacted = m00_axis_tready && m00_axis_tvalid;
+  assign s00_axis_tready = !m00_axis_tvalid || m00_axis_transacted;
+  wire  s00_axis_transacted = s00_axis_tready && s00_axis_tvalid;
 
-  assign m00_axis_tstrb  = s00_axis_tstrb;
-  assign s00_axis_tready = m00_axis_tready;
-  assign m00_axis_tvalid = s00_axis_tvalid;
-  assign m00_axis_tlast  = s00_axis_tlast;
   logic was_last;
 
   always_ff @(posedge aclk) begin
     if (!aresetn) begin
       was_last <= 1'b1;
     end else begin
-      was_last <= s00_axis_tlast;
+      if (s00_axis_tlast) begin
+        was_last <= s00_axis_tlast;
+      end
     end
   end
 
   always_ff @(posedge aclk) begin
-    for (integer channel = 0; channel < CHANNEL_COUNT; channel++) begin
-      logic signed [BIT_WIDTH-1:0] channel_max;
+    if (!aresetn) begin
+      m00_axis_tvalid <= 1'b0;
+    end else begin
+      if (s00_axis_tlast) begin
+        m00_axis_tvalid <= 1'b1;
+      end else if (m00_axis_transacted) begin
+        m00_axis_tvalid <= 1'b0;
+      end
+    end
+  end
+
+  always_ff @(posedge aclk) begin
+    if (s00_axis_transacted) begin
       if (was_last) begin
-        channel_max = '0;
-      end else begin
-        channel_max = maximums[channel];
+        was_last <= 1'b0;
       end
-      for (integer i = 0; i < WIDTH; i++) begin
-        if (inputs[i][channel] > channel_max) begin
-          channel_max = inputs[i][channel];
+      for (integer channel = 0; channel < CHANNEL_COUNT; channel++) begin
+        logic signed [BIT_WIDTH-1:0] channel_max;
+        if (was_last) begin
+          channel_max = '0;
+        end else begin
+          channel_max = maximums[channel];
         end
+        for (integer i = 0; i < WIDTH; i++) begin
+          if (inputs[i][channel] > channel_max) begin
+            channel_max = inputs[i][channel];
+          end
+        end
+        maximums[channel] <= channel_max;
       end
-      maximums[channel] <= channel_max;
     end
   end
 endmodule
