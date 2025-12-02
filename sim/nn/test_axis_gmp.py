@@ -118,7 +118,8 @@ async def test_a(dut):
             dtype=DATA_TYPE,
         )
         tb.send_input(x)
-        tb.ind.append({"type": "pause", "duration": random.randint(1, 6)})
+        if random.randint(0, 2):
+            tb.ind.append({"type": "pause", "duration": random.randint(1, 6)})
 
     # feed the driver on the S Side:
     # always be ready to receive data:
