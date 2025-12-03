@@ -161,8 +161,6 @@ if __name__ == "__main__":
     build_and_run_sim(
         __file__,
         hdl_toplevel="axis_conv1d",
-        sources=["nn/axis_conv1d.sv"],
-        includes=["nn"],
         parameters={
             "KERNEL_WIDTH": KERNEL_WIDTH,
             "C_S00_AXIS_TDATA_WIDTH": C_S00_AXIS_TDATA_WIDTH,

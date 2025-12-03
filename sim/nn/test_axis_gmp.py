@@ -140,8 +140,6 @@ if __name__ == "__main__":
     build_and_run_sim(
         __file__,
         hdl_toplevel="axis_gmp",
-        sources=["nn/axis_gmp.sv"],
-        includes=["nn"],
         parameters={
             "WIDTH": 4,
             "BIT_WIDTH": torch.iinfo(DATA_TYPE).bits,
