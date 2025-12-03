@@ -1,9 +1,12 @@
+
+/* verilator lint_off DECLFILENAME */
 package connector_pkg;
   typedef enum int {
     COMBINATIONAL = 0,
     SEQUENTIAL = 1
   } logic_style;
 endpackage
+/* verilator lint_on DECLFILENAME */
 
 module connector #(
     parameter connector_pkg::logic_style connectivity = connector_pkg::COMBINATIONAL,

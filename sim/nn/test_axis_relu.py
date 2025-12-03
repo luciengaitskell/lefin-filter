@@ -123,8 +123,6 @@ if __name__ == "__main__":
     build_and_run_sim(
         __file__,
         hdl_toplevel="axis_relu",
-        sources=["nn/axis_relu.sv"],
-        includes=["nn"],
         parameters={
             "C_S00_AXIS_TDATA_WIDTH": C_S00_AXIS_TDATA_WIDTH,
             "BIT_WIDTH": BIT_WIDTH,
