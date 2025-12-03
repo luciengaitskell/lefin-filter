@@ -20,18 +20,20 @@ class AXIS_Monitor(BusMonitor):
 
     transactions = 0  # use this variable to track good ready/valid handshakes
 
-    def __init__(self, dut, name, clk, callback=None):
+    def __init__(self, dut, name, clk, callback=None, *, include_metadata=False):
         self._signals = [
             "axis_tvalid",
             "axis_tready",
             "axis_tlast",
             "axis_tdata",
             "axis_tstrb",
+            "axis_tkeep",
         ]
         BusMonitor.__init__(self, dut, name, clk, callback=callback)
         self.clock = clk
         self.transactions = 0
         self.dut = dut
+        self.include_metadata = include_metadata
 
     async def _monitor_recv(self):
         """
@@ -51,14 +53,26 @@ class AXIS_Monitor(BusMonitor):
             data = self.bus.axis_tdata.value  # .to_signed()
             if valid and ready:
                 self.transactions += 1
-                thing = dict(
+                all_data = dict(
                     data=data.to_signed(),
                     last=last,
                     name=self.name,
                     count=self.transactions,
                 )
-                self.dut._log.info(f"{self.name}: {thing}")
-                self._recv(data.to_signed())
+
+                optional_bus_fields = dict(
+                    strb=self.bus.axis_tstrb,
+                    keep=self.bus.axis_tkeep,
+                )
+                for field_name, signal in optional_bus_fields.items():
+                    if signal is not None:
+                        all_data[field_name] = signal.value.to_unsigned()
+
+                self.dut._log.info(f"{self.name}: {all_data}")
+                if self.include_metadata:
+                    self._recv(all_data)
+                else:
+                    self._recv(data.to_signed())
 
 
 class AXIS_Driver(BusDriver):
@@ -69,6 +83,7 @@ class AXIS_Driver(BusDriver):
             "axis_tlast",
             "axis_tdata",
             "axis_tstrb",
+            "axis_tkeep",
         ]
         BusDriver.__init__(self, dut, name, clk)
         self.clock = clk
@@ -79,7 +94,6 @@ class M_AXIS_Driver(AXIS_Driver):
     def __init__(self, dut, name, clk):
         super().__init__(dut, name, clk)
         self.bus.axis_tdata.value = 0
-        self.bus.axis_tstrb.value = 0xF
         self.bus.axis_tlast.value = 0
         self.bus.axis_tvalid.value = 0
 
@@ -118,6 +132,8 @@ class M_AXIS_Driver(AXIS_Driver):
         elif value.get("type") == "write_burst":
             contents = value.get("contents", {})
             data = contents.get("data", [0])
+            strb: list | None = contents.get("strb", None)
+            keep: list | None = contents.get("keep", None)
             await self.falling_edge
             for i, value in enumerate(data):
                 self.bus.axis_tdata.value = int(value)
@@ -126,6 +142,10 @@ class M_AXIS_Driver(AXIS_Driver):
                 else:
                     self.bus.axis_tlast.value = 0
                 self.bus.axis_tvalid.value = 1
+                if strb is not None:
+                    self.bus.axis_tstrb.value = int(strb[i])
+                if keep is not None:
+                    self.bus.axis_tkeep.value = int(keep[i])
                 await self.wait_for_transaction()
                 self.bus.axis_tvalid.value = 0
                 self.bus.axis_tlast.value = 0
