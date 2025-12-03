@@ -1,4 +1,5 @@
 
+/* verilator lint_off DECLFILENAME */
 package conv1d_pkg;
   function automatic int calculate_intermediate_bit_width(int input_bit_width,
                                                           int weight_bit_width);
@@ -8,6 +9,7 @@ package conv1d_pkg;
     return intermediate_bit_width + $clog2(kernel_width);
   endfunction
 endpackage
+/* verilator lint_on DECLFILENAME */
 
 module conv1d #(
     parameter integer INPUT_BIT_WIDTH = 8,
