@@ -13,13 +13,14 @@ from sim.util.torch import (
     packed_to_long_torch,
 )
 
-INPUT_BIT_WIDTH = 16
-CHANNEL_IN_COUNT = 8
-OUTPUT_BIT_WIDTH = 16
-CHANNEL_OUT_COUNT = 2
-C_S00_AXIS_TDATA_WIDTH = INPUT_BIT_WIDTH * CHANNEL_IN_COUNT
-C_M00_AXIS_TDATA_WIDTH = OUTPUT_BIT_WIDTH * CHANNEL_OUT_COUNT
-
+INPUT_BIT_WIDTH = 8
+ELEMENTS_IN_COUNT = 8
+OUTPUT_BIT_WIDTH = 32
+ELEMENTS_OUT_COUNT = 2
+WEIGHT_BIT_WIDTH = 16
+BIAS_BIT_WIDTH = 16
+C_S00_AXIS_TDATA_WIDTH = INPUT_BIT_WIDTH * ELEMENTS_IN_COUNT
+C_M00_AXIS_TDATA_WIDTH = OUTPUT_BIT_WIDTH * ELEMENTS_OUT_COUNT
 class FCTestbench(AXIS_Testbench):
     def __init__(self, dut, layer, **kwargs):
         super().__init__(dut, **kwargs)
@@ -30,7 +31,10 @@ class FCTestbench(AXIS_Testbench):
         self.layer: nn.Linear = layer
 
     def in_callback(self, raw_input):
-        input_values = packed_to_long_torch(raw_input, self.dut.INPUT_WIDTH.value, self.dut.NUM_VALUES.value)
+        print(f"Raw input received: {raw_input}")
+        print(f"Input bit width: {int(self.dut.INPUT_BIT_WIDTH.value)}, Elements in count: {int(self.dut.ELEMENTS_IN_COUNT.value)}")
+        input_values = packed_to_long_torch(raw_input, int(self.dut.INPUT_BIT_WIDTH.value), int(self.dut.ELEMENTS_IN_COUNT.value))
+        print(f"Unpacked input values: {input_values}")
         super().in_callback(input_values)
 
         weight = self.layer.weight.data.to(torch.long)
@@ -46,13 +50,13 @@ class FCTestbench(AXIS_Testbench):
 
         result = packed_to_long_torch(
             result,
-            int(self.dut.OUTPUT_WIDTH.value),
-            int(self.dut.NUM_OUTPUTS.value),
+            int(self.dut.OUTPUT_BIT_WIDTH.value),
+            int(self.dut.ELEMENTS_OUT_COUNT.value),
         )
 
         input_vals, expected_result = self.scoreboard_queue.popleft()
         result_ok = torch.equal(result, expected_result)
-        if not result_ok.all():
+        if not result_ok:
             self.scoreboard.errors += 1 
             self.dut._log.error(f"FC Mismatch!\nInput: {input_vals}\nExpected: {expected_result}\nGot: {result}")
         else:
@@ -65,8 +69,8 @@ async def test_a(dut):
     """Test FC layer"""
     with torch.no_grad():
         fc_layer = nn.Linear(
-            in_features=CHANNEL_IN_COUNT,
-            out_features=CHANNEL_OUT_COUNT,
+            in_features=ELEMENTS_IN_COUNT,
+            out_features=ELEMENTS_OUT_COUNT,
             bias=True,
         )
         int_weights = torch.randint( -128, 127, fc_layer.weight.size(), dtype=torch.int16 )
@@ -76,8 +80,8 @@ async def test_a(dut):
 
         dut._log.info(f"Weight: {int_weights}")
         dut._log.info(f"Bias: {int_bias}")
-        dut.weights.value = int_weights.flatten().tolist()
-        dut.bias.value = int_bias.tolist()
+        dut.s_weights.value = int_weights.tolist()
+        dut.s_biases.value = int_bias.tolist()
 
 
     tb = FCTestbench(
@@ -88,14 +92,15 @@ async def test_a(dut):
     cocotb.start_soon(Clock(dut.aclk, 10, units="ns").start())
     await reset(dut.aclk, dut.aresetn, 2, 0)
 
-    NUM_ITER = 20
+    NUM_ITER = 100
     for _ in range(NUM_ITER):
         x = torch.randint(
             torch.iinfo(torch.int8).min,
             torch.iinfo(torch.int8).max,
-            (CHANNEL_IN_COUNT,),
+            (ELEMENTS_IN_COUNT,),
             dtype=torch.int8,
         )
+        print(f"Input: {x}")
         tb.ind.append(
             {
                 "type": "write_single",
@@ -114,3 +119,19 @@ async def test_a(dut):
     assert tb.scoreboard.errors == 0, (
         f"Test Failed with {tb.scoreboard.errors} errors!"
     ) 
+
+if __name__ == "__main__":
+    build_and_run_sim(
+        __file__,
+        hdl_toplevel="axis_fc",
+        sources=["nn/axis_fc.sv"],
+        includes=["nn"],
+        parameters={
+            "ELEMENTS_IN_COUNT": ELEMENTS_IN_COUNT,
+            "INPUT_BIT_WIDTH": INPUT_BIT_WIDTH,
+            "ELEMENTS_OUT_COUNT": ELEMENTS_OUT_COUNT,
+            "OUTPUT_BIT_WIDTH": OUTPUT_BIT_WIDTH,
+            "WEIGHT_BIT_WIDTH": 16,
+            "BIAS_BIT_WIDTH": 16,
+        }
+    )
