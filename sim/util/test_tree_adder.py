@@ -5,7 +5,6 @@ from cocotb.triggers import ReadOnly
 from cocotb.triggers import Timer
 import torch
 from torch import nn, Tensor
-from sim.util.torch import list_to_bitpacked
 from sim.util.sim import build_and_run_sim
 
 
