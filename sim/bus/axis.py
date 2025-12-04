@@ -195,17 +195,30 @@ class S_AXIS_Driver(BusDriver):
             raise ValueError(f"Unknown command {value}")
 
 class AXIS_Testbench:
-    def __init__(self, dut, **kwargs):
+    def __init__(self, dut, *, monitor_kwargs=None):
         self.dut = dut
         self.scoreboard = Scoreboard(dut, fail_immediately=False)
         self.scoreboard_queue: deque = deque()
         self.data_in = []
         self.data_out = []
+        monitor_kwargs = monitor_kwargs or {}
 
-        self.inm = AXIS_Monitor(dut, "s00", dut.aclk, callback=self.in_callback)
+        self.inm = AXIS_Monitor(
+            dut,
+            "s00",
+            dut.aclk,
+            callback=self.in_callback,
+            **monitor_kwargs,
+        )
         self.ind = M_AXIS_Driver(dut, "s00", dut.aclk)  # M driver for S port
 
-        self.outm = AXIS_Monitor(dut, "m00", dut.aclk, callback=self.out_callback)
+        self.outm = AXIS_Monitor(
+            dut,
+            "m00",
+            dut.aclk,
+            callback=self.out_callback,
+            **monitor_kwargs,
+        )
         self.outd = S_AXIS_Driver(dut, "m00", dut.aclk)  # S driver for M port
 
         self.scoreboard.add_interface(
