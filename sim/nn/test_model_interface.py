@@ -88,12 +88,12 @@ async def test_a(dut):
     await reset(dut.aclk, dut.aresetn, 2, 0)
 
     test_lengths = [
-        *(random.randint(1, MAXIMUM_INPUT_BYTES - 1) for _ in range(1)),
-        # *(MAXIMUM_INPUT_BYTES for _ in range(3)),
-        # *(
-        #     random.randint(1 + MAXIMUM_INPUT_BYTES, 3 * MAXIMUM_INPUT_BYTES)
-        #     for _ in range(3)
-        # ),
+        *(random.randint(1, MAXIMUM_INPUT_BYTES - 1) for _ in range(3)),
+        *(MAXIMUM_INPUT_BYTES for _ in range(3)),
+        *(
+            random.randint(1 + MAXIMUM_INPUT_BYTES, 3 * MAXIMUM_INPUT_BYTES)
+            for _ in range(3)
+        ),
     ]
     random.shuffle(test_lengths)
 
