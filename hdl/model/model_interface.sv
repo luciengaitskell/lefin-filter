@@ -39,12 +39,12 @@ module model_interface #(
 
   wire s00_axis_transacted = s00_axis_tvalid && s00_axis_tready;
 
-  logic [$clog2(MAXIMUM_CYCLES)-1:0] s00_axis_transaction_count;
+  logic [$clog2(MAXIMUM_CYCLES+1)-1:0] s00_axis_transaction_count;
   wire waiting_for_s00_axis_finish = (s00_axis_transaction_count == ($clog2(
-      MAXIMUM_CYCLES
-  ))'(MAXIMUM_CYCLES - 1));
+      MAXIMUM_CYCLES + 1
+  ))'(MAXIMUM_CYCLES));
   counter #(
-      .MAXIMUM  (MAXIMUM_CYCLES),
+      .MAXIMUM  (MAXIMUM_CYCLES+1),
       .ROLL_OVER(0)
   ) s00_axis_transaction_counter (
       .clk    (aclk),
