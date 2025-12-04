@@ -109,11 +109,24 @@ async def test_a(dut):
         if random.randint(0, 2):
             tb.ind.append({"type": "pause", "duration": random.randint(1, 6)})
 
-    await ClockCycles(dut.aclk, 3500)
+    await ClockCycles(dut.aclk, 1000)
     assert total_expected_read_transactions == tb.outm.transactions, (
         f"Transaction count ({tb.outm.transactions}) not as "
         f"expected ({total_expected_read_transactions}) :-/"
     )
+
+    await ClockCycles(dut.aclk, 1000)
+    tb.outd.append(
+        {
+            "type": "read",
+            "duration": 10,
+        }
+    )
+    assert total_expected_read_transactions == tb.outm.transactions, (
+        f"Transaction count changed from {total_expected_read_transactions} "
+        f"to {tb.outm.transactions} after extra reads!"
+    )
+
     print(
         f"in transactions: {tb.inm.transactions}, out transactions: {tb.outm.transactions}"
     )
