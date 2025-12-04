@@ -200,7 +200,9 @@ class S_AXIS_Driver(BusDriver):
                     # async efficient wait for valid on transaction
                     await RisingEdge(self.bus.axis_tvalid)
                     await self.rising_edge  # transaction happens here
-                print(f"Read transaction {i + 1}/{duration} occurred")
+                print(
+                    f"Read transaction {i + 1}/{duration} occurred with data {int(self.bus.axis_tdata.value)}"
+                )
                 await self.falling_edge
             self.bus.axis_tready.value = 0
         else:
