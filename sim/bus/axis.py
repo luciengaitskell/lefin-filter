@@ -50,11 +50,11 @@ class AXIS_Monitor(BusMonitor):
             valid = self.bus.axis_tvalid.value
             ready = self.bus.axis_tready.value
             last = self.bus.axis_tlast.value
-            data = self.bus.axis_tdata.value  # .to_signed()
+            data = self.bus.axis_tdata.value
             if valid and ready:
                 self.transactions += 1
                 all_data = dict(
-                    data=data.to_signed(),
+                    data=data.to_unsigned(),
                     last=last,
                     name=self.name,
                     count=self.transactions,
@@ -72,7 +72,7 @@ class AXIS_Monitor(BusMonitor):
                 if self.include_metadata:
                     self._recv(all_data)
                 else:
-                    self._recv(data.to_signed())
+                    self._recv(data.to_unsigned())
 
 
 class AXIS_Driver(BusDriver):
