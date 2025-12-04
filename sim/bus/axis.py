@@ -103,7 +103,10 @@ class M_AXIS_Driver(AXIS_Driver):
 
     async def wait_for_transaction(self):
         await self.rising_edge  # transaction happens here
-        await self.read_only  # make sure everything is stable
+
+        ## DO NOT go to ReadOnly, as we want state right before clock edge
+        # await self.read_only  # make sure everything is stable
+
         if not self.bus.axis_tready.value:
             # wait for ready from subordinate
             await RisingEdge(self.bus.axis_tready)
