@@ -29,7 +29,7 @@ module demo_model #(
   localparam integer C_M00_AXIS_TDATA_WIDTH = OUTPUT_BIT_WIDTH * NUM_PARALLEL_CONVS * CHANNEL_OUT_COUNT;
 
 
-  localparam signed [WEIGHT_BIT_WIDTH-1:0] weights[0:CHANNEL_OUT_COUNT-1][0:(KERNEL_WIDTH-1)] = '{
+  localparam signed [WEIGHT_BIT_WIDTH-1:0] weights_value[0:CHANNEL_OUT_COUNT-1][0:(KERNEL_WIDTH-1)] = '{
       // channel 0
       '{
           1,
@@ -146,6 +146,7 @@ module demo_model #(
           4
       }
   };
+  (* dont_touch = "true" *) wire signed [WEIGHT_BIT_WIDTH-1:0] weights[0:CHANNEL_OUT_COUNT-1][0:(KERNEL_WIDTH-1)] = weights_value;
 
   
   // (* keep = "true" *) logic [C_M00_AXIS_TDATA_WIDTH-1 : 0] m00_axis_tdata;
