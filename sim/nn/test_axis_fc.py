@@ -1,3 +1,4 @@
+import math
 import cocotb
 import random
 from collections import deque
@@ -16,10 +17,11 @@ from sim.util.torch import (
 
 INPUT_BIT_WIDTH = 16
 ELEMENTS_IN_COUNT = 16
-OUTPUT_BIT_WIDTH = 40
+OUTPUT_BIT_WIDTH = 36
 ELEMENTS_OUT_COUNT = 2
 WEIGHT_BIT_WIDTH = 16
 BIAS_BIT_WIDTH = 16
+assert OUTPUT_BIT_WIDTH >= INPUT_BIT_WIDTH + WEIGHT_BIT_WIDTH + math.ceil(math.log2(ELEMENTS_IN_COUNT)), f"OUTPUT_BIT_WIDTH is too small to hold the result of the FC layer, min is {INPUT_BIT_WIDTH + WEIGHT_BIT_WIDTH + math.ceil(math.log2(ELEMENTS_IN_COUNT))}"
 C_S00_AXIS_TDATA_WIDTH = INPUT_BIT_WIDTH * ELEMENTS_IN_COUNT
 C_M00_AXIS_TDATA_WIDTH = OUTPUT_BIT_WIDTH * ELEMENTS_OUT_COUNT
 
