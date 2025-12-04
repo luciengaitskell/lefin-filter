@@ -196,7 +196,8 @@ class S_AXIS_Driver(BusDriver):
             ## FIXME: maybe add some prints and see where they line up in script output
             for i in range(duration):
                 await self.read_only
-                if not self.bus.axis_tvalid.value:
+                while not self.bus.axis_tvalid.value:
+                    # async efficient wait for valid on transaction
                     await RisingEdge(self.bus.axis_tvalid)
                     await self.rising_edge  # transaction happens here
                 print(f"Read transaction {i + 1}/{duration} occurred")
