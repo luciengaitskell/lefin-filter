@@ -111,7 +111,9 @@ class M_AXIS_Driver(AXIS_Driver):
             # wait for ready from subordinate
             await RisingEdge(self.bus.axis_tready)
             await self.rising_edge  # transaction happens here
-        await self.falling_edge  # deassert valid after transaction
+        # Allow writing as soon as the clock is positive
+        await ReadWrite()
+        # await self.falling_edge  # deassert valid after transaction
 
     async def _driver_send(self, value, sync=True):
         if value.get("type") == "pause":
@@ -185,11 +187,13 @@ class S_AXIS_Driver(BusDriver):
 
             duration = value.get("duration", 1)
             # await self.rising_edge
+            ## FIXME: maybe add some prints and see where they line up in script output
             for i in range(duration):
                 await self.read_only
                 if not self.bus.axis_tvalid.value:
                     await RisingEdge(self.bus.axis_tvalid)
                     await self.rising_edge  # transaction happens here
+                print(f"Read transaction {i + 1}/{duration} occurred")
                 if i != (duration - 1):
                     await self.falling_edge
             await self.rising_edge
