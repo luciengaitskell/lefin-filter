@@ -18,7 +18,6 @@ def long_torch_to_packed(value: Tensor, value_bit_width: int) -> int:
         )
     return packed
 
-
 def packed_to_int8_torch(value: int, length: int) -> Tensor:
     values = []
     for i in range(length):

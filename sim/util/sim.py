@@ -16,8 +16,8 @@ def build_and_run_sim(
     test_file,
     *,
     hdl_toplevel: str,
-    sources: list[str],
-    includes: list[str],
+    additional_sources: list[str] | None = None,
+    includes: list[str] | None = None,
     parameters: dict | None = None,
 ):
     if parameters is None:
@@ -37,8 +37,12 @@ def build_and_run_sim(
         "--timing",
     ]
     proj_path = Path(__file__).resolve().parent.parent.parent
-    source_paths = [proj_path / "hdl" / source for source in sources]
-    includes_paths = [proj_path / "hdl" / inc for inc in includes]
+    source_root = Path(proj_path / "hdl")
+    source_paths = list(source_root.glob("**/*.sv"))
+    if additional_sources:
+        source_paths += [proj_path / "hdl" / source for source in additional_sources]
+    includes_paths = [proj_path / "hdl" / inc for inc in includes] if includes else []
+
     sys.path.append(str(Path(test_file).resolve().parent))
     print("added to sys.path:", str(Path(test_file).resolve().parent))
 

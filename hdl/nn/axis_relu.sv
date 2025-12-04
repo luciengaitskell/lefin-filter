@@ -25,20 +25,20 @@ module axis_relu #(
     output logic [(C_M00_AXIS_TDATA_WIDTH/8)-1:0] m00_axis_tstrb
 );
 
-  logic signed [BIT_WIDTH-1:0] inputs[0:WIDTH-1][0:CHANNEL_COUNT-1];
+  logic signed [BIT_WIDTH-1:0] inputs[0:CHANNEL_COUNT-1][0:WIDTH-1];
   always_comb begin
     for (integer i = 0; i < WIDTH; i++) begin
       for (integer channel = 0; channel < CHANNEL_COUNT; channel++) begin
-        inputs[i][channel] = s00_axis_tdata[BIT_WIDTH*(channel*WIDTH + i)+:BIT_WIDTH];
+        inputs[channel][i] = s00_axis_tdata[BIT_WIDTH*(channel*WIDTH+i)+:BIT_WIDTH];
       end
     end
   end
 
-  logic signed [BIT_WIDTH-1:0] outputs[0:WIDTH-1][0:CHANNEL_COUNT-1];
+  logic signed [BIT_WIDTH-1:0] outputs[0:CHANNEL_COUNT-1][0:WIDTH-1];
   always_comb begin
     for (integer i = 0; i < WIDTH; i++) begin
       for (integer channel = 0; channel < CHANNEL_COUNT; channel++) begin
-        m00_axis_tdata[BIT_WIDTH*(channel*WIDTH + i)+:BIT_WIDTH] = outputs[i][channel];
+        m00_axis_tdata[BIT_WIDTH*(channel*WIDTH+i)+:BIT_WIDTH] = outputs[channel][i];
       end
     end
   end
@@ -49,9 +49,9 @@ module axis_relu #(
   assign m00_axis_tlast  = s00_axis_tlast;
 
   always_comb begin
-    for (integer i = 0; i < WIDTH; i++) begin
-      for (integer channel = 0; channel < CHANNEL_COUNT; channel++) begin
-        outputs[i][channel] = (inputs[i][channel] > 0) ? inputs[i][channel] : '0;
+    for (integer channel = 0; channel < CHANNEL_COUNT; channel++) begin
+      for (integer i = 0; i < WIDTH; i++) begin
+        outputs[channel][i] = (inputs[channel][i] > 0) ? inputs[channel][i] : '0;
       end
     end
   end

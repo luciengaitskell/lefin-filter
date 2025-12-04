@@ -1,0 +1,46 @@
+{
+  "design": {
+    "design_info": {
+      "boundary_crc": "0x0",
+      "device": "xczu48dr-ffvg1517-2-e",
+      "name": "design_1",
+      "rev_ctrl_bd_flag": "RevCtrlBdOff",
+      "synth_flow_mode": "Hierarchical",
+      "tool_version": "2025.1"
+    },
+    "design_tree": {
+      "xxv_ethernet_0": ""
+    },
+    "components": {
+      "xxv_ethernet_0": {
+        "vlnv": "xilinx.com:ip:xxv_ethernet:5.0",
+        "ip_revision": "0",
+        "xci_name": "design_1_xxv_ethernet_0_0",
+        "xci_path": "ip/design_1_xxv_ethernet_0_0/design_1_xxv_ethernet_0_0.xci",
+        "inst_hier_path": "xxv_ethernet_0",
+        "has_run_ip_tcl": "true",
+        "interface_ports": {
+          "s_axi_0": {
+            "vlnv": "xilinx.com:interface:aximm_rtl:1.0",
+            "mode": "Slave",
+            "memory_map_ref": "s_axi_0"
+          }
+        },
+        "addressing": {
+          "memory_maps": {
+            "s_axi_0": {
+              "address_blocks": {
+                "Reg": {
+                  "base_address": "0",
+                  "range": "64K",
+                  "width": "16",
+                  "usage": "register"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
