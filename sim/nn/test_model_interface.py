@@ -89,8 +89,6 @@ async def test_a(dut):
         )
         tb.ind.append({"type": "pause", "duration": random.randint(1, 6)})
 
-        print("num chunks:", len(packed_chunks))
-        print("maximum cycles:", int(dut.MAXIMUM_CYCLES.value))
         expected_read_transactions = min(
             len(packed_chunks), int(dut.MAXIMUM_CYCLES.value)
         )
