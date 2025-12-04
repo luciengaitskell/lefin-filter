@@ -39,6 +39,7 @@ class ModelInterfaceTestbench(AXIS_Testbench):
         result_okay = True
         result_okay &= result["strb"] == input_vals["keep"]
         result_okay &= result["data"] == input_vals["data"]
+        result_okay &= result["last"] == input_vals["last"]
 
         if not result_okay:
             self.scoreboard.errors += 1
@@ -59,12 +60,15 @@ class ModelInterfaceTestbench(AXIS_Testbench):
                 "contents": {"data": packed_chunks, "keep": chunk_tkeeps},
             }
         )
-        self.scoreboard_queue.extend(
-            {"data": packed, "keep": tkeep}
+
+        expected_results = [
+            {"data": packed, "keep": tkeep, "last": 0}
             for packed, tkeep in islice(
                 zip(packed_chunks, chunk_tkeeps), int(self.dut.MAXIMUM_CYCLES.value)
             )
-        )
+        ]
+        expected_results[-1]["last"] = 1
+        self.scoreboard_queue.extend(expected_results)
 
         expected_read_transactions = min(
             len(packed_chunks), int(self.dut.MAXIMUM_CYCLES.value)

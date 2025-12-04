@@ -57,7 +57,7 @@ module model_interface #(
   assign m00_axis_tvalid = s00_axis_tvalid && !waiting_for_s00_axis_finish;
   assign m00_axis_tdata  = s00_axis_tdata;
   assign m00_axis_tstrb  = s00_axis_tkeep;
-
-
-  // FIXME: need to handle the m00_axis_tlast??
+  assign m00_axis_tlast = s00_axis_tlast || (s00_axis_transaction_count == ($clog2(
+      MAXIMUM_CYCLES + 1
+  ))'(MAXIMUM_CYCLES-1));  // one before going into waiting state
 endmodule
