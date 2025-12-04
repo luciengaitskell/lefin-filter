@@ -176,14 +176,18 @@ class S_AXIS_Driver(BusDriver):
         self.falling_edge = FallingEdge(self.clock)
         self.read_only = ReadOnly()
 
+    async def wait_for_write_region(self):
+        if self.clock.value:
+            await self.falling_edge
+
     async def _driver_send(self, value, sync=True):
         if value.get("type") == "pause":
-            await self.falling_edge
+            await self.wait_for_write_region()
             self.bus.axis_tready.value = 0  # set to 0 and be done.
             for i in range(value.get("duration", 1)):
                 await self.rising_edge
         elif value.get("type") == "read":
-            await self.falling_edge
+            await self.wait_for_write_region()
             self.bus.axis_tready.value = 1
             # wait for `duration` number of read transactions
 
@@ -196,9 +200,7 @@ class S_AXIS_Driver(BusDriver):
                     await RisingEdge(self.bus.axis_tvalid)
                     await self.rising_edge  # transaction happens here
                 print(f"Read transaction {i + 1}/{duration} occurred")
-                if i != (duration - 1):
-                    await self.falling_edge
-            await self.rising_edge
+                await self.falling_edge
             self.bus.axis_tready.value = 0
         else:
             raise ValueError(f"Unknown command {value}")
