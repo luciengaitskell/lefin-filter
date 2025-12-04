@@ -10,17 +10,20 @@ from sim.util.sim import build_and_run_sim, reset
 from sim.util.torch import (
     int8_torch_to_packed,
     packed_to_int8_torch,
+    long_torch_to_packed,
     packed_to_long_torch,
 )
 
-INPUT_BIT_WIDTH = 8
-ELEMENTS_IN_COUNT = 8
-OUTPUT_BIT_WIDTH = 32
+INPUT_BIT_WIDTH = 16
+ELEMENTS_IN_COUNT = 16
+OUTPUT_BIT_WIDTH = 40
 ELEMENTS_OUT_COUNT = 2
 WEIGHT_BIT_WIDTH = 16
 BIAS_BIT_WIDTH = 16
 C_S00_AXIS_TDATA_WIDTH = INPUT_BIT_WIDTH * ELEMENTS_IN_COUNT
 C_M00_AXIS_TDATA_WIDTH = OUTPUT_BIT_WIDTH * ELEMENTS_OUT_COUNT
+
+
 class FCTestbench(AXIS_Testbench):
     def __init__(self, dut, layer, **kwargs):
         super().__init__(dut, **kwargs)
@@ -73,8 +76,12 @@ async def test_a(dut):
             out_features=ELEMENTS_OUT_COUNT,
             bias=True,
         )
-        int_weights = torch.randint( -128, 127, fc_layer.weight.size(), dtype=torch.int16 )
-        int_bias = torch.randint( -128, 127, fc_layer.bias.size(), dtype=torch.int16 )
+        max_of_weights = 2 ** (WEIGHT_BIT_WIDTH - 1) - 1
+        max_of_bias = 2 ** (BIAS_BIT_WIDTH - 1) - 1
+        min_of_weights = -max_of_weights - 1
+        min_of_bias = -max_of_bias - 1
+        int_weights = torch.randint( min_of_weights, max_of_weights + 1, fc_layer.weight.size(), dtype=torch.long )
+        int_bias = torch.randint( min_of_bias, max_of_bias + 1, fc_layer.bias.size(), dtype=torch.long )
         fc_layer.weight.data = int_weights.to(torch.float32)
         fc_layer.bias.data = int_bias.to(torch.float32)
 
@@ -92,19 +99,19 @@ async def test_a(dut):
     cocotb.start_soon(Clock(dut.aclk, 10, units="ns").start())
     await reset(dut.aclk, dut.aresetn, 2, 0)
 
-    NUM_ITER = 100
+    NUM_ITER = 1000
     for _ in range(NUM_ITER):
         x = torch.randint(
-            torch.iinfo(torch.int8).min,
-            torch.iinfo(torch.int8).max,
+            torch.iinfo(torch.int16).min,
+            torch.iinfo(torch.int16).max,
             (ELEMENTS_IN_COUNT,),
-            dtype=torch.int8,
+            dtype=torch.long,
         )
         print(f"Input: {x}")
         tb.ind.append(
             {
                 "type": "write_single",
-                "contents": {"data": int8_torch_to_packed(x), "last": 0},
+                "contents": {"data": long_torch_to_packed(x, INPUT_BIT_WIDTH), "last": 0},
             }
         )
         tb.ind.append({"type": "pause", "duration": random.randint(1, 6)})
@@ -131,7 +138,7 @@ if __name__ == "__main__":
             "INPUT_BIT_WIDTH": INPUT_BIT_WIDTH,
             "ELEMENTS_OUT_COUNT": ELEMENTS_OUT_COUNT,
             "OUTPUT_BIT_WIDTH": OUTPUT_BIT_WIDTH,
-            "WEIGHT_BIT_WIDTH": 16,
-            "BIAS_BIT_WIDTH": 16,
+            "WEIGHT_BIT_WIDTH": WEIGHT_BIT_WIDTH,
+            "BIAS_BIT_WIDTH": BIAS_BIT_WIDTH,
         }
     )
