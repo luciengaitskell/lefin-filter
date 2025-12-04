@@ -38,15 +38,3 @@ def packed_to_long_torch(value: int, value_bit_width: int, length: int) -> Tenso
             byte -= 1 << value_bit_width
         values.append(byte)
     return torch.tensor(values, dtype=torch.long)
-
-def list_to_bitpacked(value: list[int], bit_width: int) -> int:
-    packed = 0
-    for i, v in enumerate(value):
-        # packed |= (v & ((1 << bit_width) - 1)) << (i * bit_width)
-        #reversed of above
-        packed |= (v & ((1 << bit_width) - 1)) << ((len(value) - 1 - i) * bit_width)
-    # print each value in list as hex then print packed as hex
-    print("Packing values:", value)
-    print(f"Values:         {[hex(v & ((1 << bit_width) - 1)) for v in value]}")
-    print(f"Packed:         {hex(packed)}")
-    return packed
