@@ -1,6 +1,7 @@
 import cocotb
 import random
 from collections import deque
+from itertools import islice
 from cocotb.clock import Clock
 from cocotb.triggers import ClockCycles
 import torch
@@ -60,9 +61,9 @@ class ModelInterfaceTestbench(AXIS_Testbench):
         )
         self.scoreboard_queue.extend(
             {"data": packed, "keep": tkeep}
-            for packed, tkeep in list(zip(packed_chunks, chunk_tkeeps))[
-                0 : self.dut.MAXIMUM_CYCLES.value
-            ]
+            for packed, tkeep in islice(
+                zip(packed_chunks, chunk_tkeeps), int(self.dut.MAXIMUM_CYCLES.value)
+            )
         )
 
         expected_read_transactions = min(
