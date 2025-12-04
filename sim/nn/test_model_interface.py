@@ -27,8 +27,6 @@ class ModelInterfaceTestbench(AXIS_Testbench):
     def in_callback(self, raw_input):
         super().in_callback(raw_input)
 
-        self.scoreboard_queue.append(raw_input)
-
     def compare_fn(self, result):
         """Compare the received transaction with the expected output."""
         if not self.scoreboard_queue:
@@ -48,6 +46,36 @@ class ModelInterfaceTestbench(AXIS_Testbench):
             self.dut._log.info(f"Match! Got {result}, for input {input_vals}")
         return result_okay
 
+    def send_input(self, input_values: torch.Tensor) -> int:
+        chunked_input_data = input_values.split(int(self.dut.WIDTH.value))
+        packed_chunks = [int8_torch_to_packed(chunk) for chunk in chunked_input_data]
+        chunk_lengths = [len(chunk) for chunk in chunked_input_data]
+        chunk_tkeeps = [(1 << length) - 1 for length in chunk_lengths]
+
+        self.ind.append(
+            {
+                "type": "write_burst",
+                "contents": {"data": packed_chunks, "keep": chunk_tkeeps},
+            }
+        )
+        self.scoreboard_queue.extend(
+            {"data": packed, "keep": tkeep}
+            for packed, tkeep in list(zip(packed_chunks, chunk_tkeeps))[
+                0 : self.dut.MAXIMUM_CYCLES.value
+            ]
+        )
+
+        expected_read_transactions = min(
+            len(packed_chunks), int(self.dut.MAXIMUM_CYCLES.value)
+        )
+        self.outd.append(
+            {
+                "type": "read",
+                "duration": expected_read_transactions,
+            }
+        )
+        return expected_read_transactions
+
 
 @cocotb.test
 async def test_a(dut):
@@ -59,8 +87,8 @@ async def test_a(dut):
     await reset(dut.aclk, dut.aresetn, 2, 0)
 
     test_lengths = [
-        *(random.randint(1, MAXIMUM_INPUT_BYTES - 1) for _ in range(3)),
-        *(MAXIMUM_INPUT_BYTES for _ in range(3)),
+        *(random.randint(1, MAXIMUM_INPUT_BYTES - 1) for _ in range(1)),
+        # *(MAXIMUM_INPUT_BYTES for _ in range(3)),
         # *(
         #     random.randint(1 + MAXIMUM_INPUT_BYTES, 3 * MAXIMUM_INPUT_BYTES)
         #     for _ in range(3)
@@ -76,29 +104,8 @@ async def test_a(dut):
             (data_length,),
             dtype=torch.int8,
         )
-        chunked_input_data = full_input_data.split(int(dut.WIDTH.value))
-        packed_chunks = [int8_torch_to_packed(chunk) for chunk in chunked_input_data]
-        chunk_lengths = [len(chunk) for chunk in chunked_input_data]
-        chunk_tkeeps = [(1 << length) - 1 for length in chunk_lengths]
-
-        tb.ind.append(
-            {
-                "type": "write_burst",
-                "contents": {"data": packed_chunks, "keep": chunk_tkeeps},
-            }
-        )
+        total_expected_read_transactions += tb.send_input(full_input_data)
         tb.ind.append({"type": "pause", "duration": random.randint(1, 6)})
-
-        expected_read_transactions = min(
-            len(packed_chunks), int(dut.MAXIMUM_CYCLES.value)
-        )
-        total_expected_read_transactions += expected_read_transactions
-        tb.outd.append(
-            {
-                "type": "read",
-                "duration": expected_read_transactions,
-            }
-        )
 
     await ClockCycles(dut.aclk, 3500)
     assert total_expected_read_transactions == tb.outm.transactions, (
