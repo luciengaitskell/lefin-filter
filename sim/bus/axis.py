@@ -101,6 +101,10 @@ class M_AXIS_Driver(AXIS_Driver):
         self.falling_edge = FallingEdge(self.clock)
         self.read_only = ReadOnly()
 
+    async def wait_for_write_region(self):
+        if self.clock.value:
+            await self.falling_edge
+
     async def wait_for_transaction(self):
         await self.rising_edge  # transaction happens here
 
@@ -111,9 +115,7 @@ class M_AXIS_Driver(AXIS_Driver):
             # wait for ready from subordinate
             await RisingEdge(self.bus.axis_tready)
             await self.rising_edge  # transaction happens here
-        # Allow writing as soon as the clock is positive
-        await ReadWrite()
-        # await self.falling_edge  # deassert valid after transaction
+        await self.falling_edge  # deassert valid after transaction
 
     async def _driver_send(self, value, sync=True):
         if value.get("type") == "pause":
@@ -127,7 +129,7 @@ class M_AXIS_Driver(AXIS_Driver):
             contents = value.get("contents", {})
             data = contents.get("data", 0)
             last = contents.get("last", 0)
-            await self.falling_edge
+            await self.wait_for_write_region()
             self.bus.axis_tdata.value = data
             self.bus.axis_tlast.value = last
             self.bus.axis_tvalid.value = 1
@@ -139,7 +141,7 @@ class M_AXIS_Driver(AXIS_Driver):
             data = contents.get("data", [0])
             strb: list | None = contents.get("strb", None)
             keep: list | None = contents.get("keep", None)
-            await self.falling_edge
+            await self.wait_for_write_region()
             for i, value in enumerate(data):
                 self.bus.axis_tdata.value = int(value)
                 if i == (len(data) - 1):
