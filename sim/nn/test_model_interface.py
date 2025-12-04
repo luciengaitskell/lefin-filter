@@ -106,7 +106,8 @@ async def test_a(dut):
             dtype=torch.int8,
         )
         total_expected_read_transactions += tb.send_input(full_input_data)
-        tb.ind.append({"type": "pause", "duration": random.randint(1, 6)})
+        if random.randint(0, 2):
+            tb.ind.append({"type": "pause", "duration": random.randint(1, 6)})
 
     await ClockCycles(dut.aclk, 3500)
     assert total_expected_read_transactions == tb.outm.transactions, (
