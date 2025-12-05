@@ -45,8 +45,9 @@ class AXIS_Monitor(BusMonitor):
         while True:
             # await rising_edge #can either wait for just edge...
             # or you can also wait for falling edge/read_only (see note in lab)
-            await falling_edge  # sometimes see in AXI shit
-            await read_only  # readonly (the postline)
+            # await falling_edge  # sometimes see in AXI shit
+            # await read_only  # readonly (the postline)
+            await rising_edge
             valid = self.bus.axis_tvalid.value
             ready = self.bus.axis_tready.value
             last = self.bus.axis_tlast.value

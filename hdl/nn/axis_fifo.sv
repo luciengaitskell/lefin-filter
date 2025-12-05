@@ -47,7 +47,12 @@ logic valid_input_transaction;
 assign valid_input_transaction = s00_axis_tvalid && s00_axis_tready;
 logic valid_output_transaction;
 assign valid_output_transaction = m00_axis_tvalid && m00_axis_tready;
-logic read_ptr_equal_write_ptr = (read_ptr == write_ptr);
+logic read_ptr_equal_write_ptr;
+assign read_ptr_equal_write_ptr = (read_ptr == write_ptr);
+logic valid_data_in_fifo;
+assign valid_data_in_fifo = read_ptr < write_ptr;
+logic valid_data_next_round;
+assign valid_data_next_round = (read_ptr + 1) < write_ptr;
 
 typedef enum logic [1:0] {
     NFILL_NDRAIN,
@@ -57,16 +62,21 @@ typedef enum logic [1:0] {
 } state_t;
 state_t cur_state;
 
+// for reads to be on same cycle
+always_comb begin
+    m00_axis_tdata = fifo_data_mem[read_ptr];
+    m00_axis_tstrb = fifo_strb_mem[read_ptr];
+    m00_axis_tkeep = fifo_keep_mem[read_ptr];
+    m00_axis_tlast = fifo_last_mem[read_ptr];
+end
+
+
 always_ff @(posedge aclk) begin
     if (!aresetn) begin
         // Reset logic
         read_ptr <= 0;
         write_ptr <= 0;
         cur_state <= FILL_ONLY;
-        m00_axis_tdata <= fifo_data_mem[0];
-        m00_axis_tstrb <= fifo_strb_mem[0];
-        m00_axis_tkeep <= fifo_keep_mem[0];
-        m00_axis_tlast <= fifo_last_mem[0];
         m00_axis_tvalid <= 0;
         s00_axis_tready <= 1;
     end else begin
@@ -82,23 +92,28 @@ always_ff @(posedge aclk) begin
                 case ({read_enable, s00_axis_tlast})
                     2'b00: begin
                         // stay in FILL_ONLY
+                        s00_axis_tready <= 1;
+                        m00_axis_tvalid <= 0;
                     end
                     2'b10: begin // read enable only
                         cur_state <= FILL_AND_DRAIN;
                         read_ptr <= 0; // reset read pointer
+                        s00_axis_tready <= 1;
+                        m00_axis_tvalid <= (valid_data_in_fifo);;
                     end
                     2'b01: begin // tlast only
                         cur_state <= NFILL_NDRAIN;
                         read_ptr <= 0; // reset read pointer
+                        s00_axis_tready <= 0;
+                        m00_axis_tvalid <= 0;
                     end
                     2'b11: begin
                         cur_state <= DRAIN_ONLY;
                         read_ptr <= 0; // reset read pointer
+                        s00_axis_tready <= 0;
+                        m00_axis_tvalid <= 1;
                     end
                 endcase
-                // drive ready and valid signals
-                s00_axis_tready <= 1;
-                m00_axis_tvalid <= 0;
                 // handle writes 
                 if (valid_input_transaction) begin
                     fifo_data_mem[write_ptr] <= s00_axis_tdata;
@@ -109,35 +124,41 @@ always_ff @(posedge aclk) begin
                 end 
             end
             // wait for all data to be read out
-            DRAIN_ONLY: begin 
+            DRAIN_ONLY: begin
                 // handle transition
                 if (valid_output_transaction && (fifo_last_mem[read_ptr] == 1'b1)) begin // transacts and last data read indicated by tlast in memory
                     cur_state <= FILL_ONLY;
                     write_ptr <= 0; // reset write pointer
                     read_ptr <= 0; // reset read pointer
-                end
-                // drive ready signal  (valid signal above to avoid late deassertion)
-                s00_axis_tready <= 0;
-                m00_axis_tvalid <= 1;
-                // handle reads
-                m00_axis_tdata <= fifo_data_mem[read_ptr];
-                m00_axis_tstrb <= fifo_strb_mem[read_ptr];
-                m00_axis_tkeep <= fifo_keep_mem[read_ptr];
-                m00_axis_tlast <= fifo_last_mem[read_ptr];
-                // advance read pointer if valid transaction on m_axis
-                if (valid_output_transaction) begin
+                    s00_axis_tready <= 1;
+                    m00_axis_tvalid <= 0;
+                end else if (valid_output_transaction) begin
                     read_ptr <= read_ptr + 1;
+                    // advance read pointer if valid transaction on m_axis
                 end
+                if (read_ptr > write_ptr) begin
+                    // safety check to avoid reading invalid data drop everything and go to FILL_ONLY
+                    cur_state <= FILL_ONLY;
+                    write_ptr <= 0; // reset write pointer
+                    read_ptr <= 0; // reset read pointer
+                    s00_axis_tready <= 1;
+                    m00_axis_tvalid <= 0;
+                    $display("WARNING: AXIS FIFO read pointer exceeded write pointer, resetting FIFO to FILL_ONLY state");
+                end
+            
+                
             end
             // wait for tlast to be seen
             FILL_AND_DRAIN: begin 
+                // drive ready and valid signals THIS ORDER MATTERS FOR S_TREADY
+                s00_axis_tready <= 1;
+                m00_axis_tvalid <= (valid_data_next_round); // only valid if there is data to read
                 // handle transition
                 if (valid_input_transaction && s00_axis_tlast) begin
                     cur_state <= DRAIN_ONLY;
-                end
-                // drive ready and valid signals
-                s00_axis_tready <= 1;
-                m00_axis_tvalid <= 1;
+                    s00_axis_tready <= 0;   
+                    m00_axis_tvalid <= 1;
+                end 
                 // handle writes
                 if (valid_input_transaction) begin
                     fifo_data_mem[write_ptr] <= s00_axis_tdata;
@@ -151,23 +172,20 @@ always_ff @(posedge aclk) begin
                 if (valid_output_transaction) begin
                     read_ptr <= read_ptr + 1;
                 end
-                m00_axis_tdata <= fifo_data_mem[read_ptr];
-                m00_axis_tstrb <= fifo_strb_mem[read_ptr];
-                m00_axis_tkeep <= fifo_keep_mem[read_ptr];
-                m00_axis_tlast <= fifo_last_mem[read_ptr];
             end
             // wait for read enable
             NFILL_NDRAIN: begin 
                 // handle transition
                 if (read_enable) begin
                     cur_state <= DRAIN_ONLY;
+                    s00_axis_tready <= 0;
+                    m00_axis_tvalid <= 1;
                 end
-                // drive ready and valid signals
-                s00_axis_tready <= 0;
-                m00_axis_tvalid <= 0;
             end
             default: begin
                 cur_state <= FILL_ONLY; 
+                s00_axis_tready <= 1;
+                m00_axis_tvalid <= 0;
                 read_ptr <= 0;
                 write_ptr <= 0;
             end
