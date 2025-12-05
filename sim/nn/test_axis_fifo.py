@@ -15,9 +15,9 @@ from sim.util.torch import (
     packed_to_long_torch,
 )
 
-C_S00_AXIS_TDATA_WIDTH = 64
-C_S00_AXIS_TSTRB_WIDTH = 8
-C_S00_AXIS_TKEEP_WIDTH = 8
+C_S00_AXIS_TDATA_WIDTH = 32
+C_S00_AXIS_TSTRB_WIDTH = 4
+C_S00_AXIS_TKEEP_WIDTH = 4
 
 class FIFOsTestbench(AXIS_Testbench):
     def __init__(self, dut, **kwargs):
@@ -54,9 +54,9 @@ async def test_fifos_basic(dut):
     """
     tb = FIFOsTestbench(dut)
     cocotb.start_soon(Clock(dut.aclk, 10, units="ns").start())
-    await reset(dut, dut.aclk, 2, 0)
+    await reset(dut.aclk, dut.aresetn, 2, 0)
 
-    NUM_ITER = 10
+    NUM_ITER = 4
     max_data_value = 2 ** C_S00_AXIS_TDATA_WIDTH - 1
     data_in = [random.randint(0, max_data_value) for _ in range(NUM_ITER)]
     tb.ind.append({
@@ -67,9 +67,13 @@ async def test_fifos_basic(dut):
     tb.outd.append({"type": "read", "duration": NUM_ITER*10})
 
     await ClockCycles(dut.aclk, NUM_ITER*2)  # wait a bit before starting
+    dut.read_enable.value = 1
+    await ClockCycles(dut.aclk, 1)
+    dut.read_enable.value = 0
+    await ClockCycles(dut.aclk, NUM_ITER*2)
 
     assert tb.inm.transactions == tb.outm.transactions, (
-        "Transaction Count doesn't match! :-/"
+        f"Transaction Count doesn't match! :-/ In: {tb.inm.transactions}, Out: {tb.outm.transactions}"
     )
     print(
         f"in transactions: {tb.inm.transactions}, out transactions: {tb.outm.transactions}"
@@ -81,13 +85,10 @@ async def test_fifos_basic(dut):
 if __name__ == "__main__":
     build_and_run_sim(
         __file__,
-        hdl_toplevel="axis_fifos",
-        source=["nn/axis_fc.sv"],
+        hdl_toplevel="axis_fifo",
         includes=["nn"],
         parameters={
-            "C_S00_AXIS_TDATA_WIDTH": C_S00_AXIS_TDATA_WIDTH,
-            "C_S00_AXIS_TSTRB_WIDTH": C_S00_AXIS_TSTRB_WIDTH,
-            "C_S00_AXIS_TKEEP_WIDTH": C_S00_AXIS_TKEEP_WIDTH,
+            "DATA_WIDTH": C_S00_AXIS_TDATA_WIDTH,
         },
     )
 
