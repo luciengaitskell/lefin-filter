@@ -1,6 +1,6 @@
 `include "weights.svh"
 
-module moduleName #(
+module model #(
     parameter int C_S00_AXIS_TDATA_WIDTH = 32,
     parameter int INPUT_BIT_WIDTH = 8,
     localparam int INPUT_WIDTH = C_S00_AXIS_TDATA_WIDTH / INPUT_BIT_WIDTH,
