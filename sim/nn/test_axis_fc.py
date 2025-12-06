@@ -133,7 +133,6 @@ if __name__ == "__main__":
     build_and_run_sim(
         __file__,
         hdl_toplevel="axis_fc",
-        sources=["nn/axis_fc.sv"],
         includes=["nn"],
         parameters={
             "ELEMENTS_IN_COUNT": ELEMENTS_IN_COUNT,
