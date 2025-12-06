@@ -43,9 +43,8 @@ if __name__ == "__main__":
         __file__,
         hdl_toplevel="tree_adder",
         includes=["util"],
-        sources=["util/tree_adder.sv"],
         parameters={
             "NUM_INPUTS": 4,
             "INPUT_BIT_WIDTH": 16,
-        }
+        },
     )
