@@ -103,11 +103,17 @@ async def test_a(dut):
             bias=False,
         )
         int_kernel = torch.tensor([[1, 0, 4, 0, 0], [0, 1, 0, -1, 0]], dtype=torch.int8)
+        int_biases = torch.tensor([1, -1], dtype=torch.int8)
         assert int_kernel.shape == (layer.out_channels, KERNEL_WIDTH), (
             f"Kernel shape mismatch {int_kernel.shape} | {layer.weight.shape}"
         )
+        assert int_biases.shape == (layer.out_channels,), (
+            f"Biases shape mismatch {int_biases.shape} | {(layer.out_channels,)}"
+        )
         layer.weight.copy_(int_kernel.float().view_as(layer.weight))
+        layer.bias = nn.Parameter(int_biases.float())
         dut.weights.value = int_kernel.tolist()
+        dut.biases.value = int_biases.tolist()
 
     tb = Conv1dTestbench(dut, layer=layer)
 

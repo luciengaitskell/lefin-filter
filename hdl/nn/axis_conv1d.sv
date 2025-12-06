@@ -37,6 +37,7 @@ module axis_conv1d #(
     input wire aclk,
     input wire aresetn,
     input wire signed [WEIGHT_BIT_WIDTH-1:0] weights[0:CHANNEL_OUT_COUNT-1][0:(KERNEL_WIDTH-1)],
+    input wire signed [WEIGHT_BIT_WIDTH-1:0] biases[0:CHANNEL_OUT_COUNT-1],
 
     // Ports of Axi Slave Bus Interface S00_AXIS
     input wire s00_axis_tlast,
@@ -108,6 +109,7 @@ module axis_conv1d #(
           .inputs_valid    (s00_axis_tvalid && previous_inputs_filled),
           // was considerign `&& m00_axis_tready` but I think it's wrong
           .weights         (weights),
+          .biases          (biases),
           .activation      (activations[i]),
           .activation_valid(m00_axis_tstrb[i])
       );
