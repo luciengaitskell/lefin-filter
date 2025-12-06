@@ -24,8 +24,10 @@ module axis_fifo #(
     input  wire                      m00_axis_tready,
 
     // Read enable single cycle high
-    input wire                       read_enable
+    input wire                       packet_output_valid,
+    input wire                       packet_output_good
 );
+
 
 // memory declaration
 logic [DATA_WIDTH-1:0]    fifo_data_mem [0:DEPTH-1];
@@ -37,28 +39,30 @@ logic [0:0]               fifo_last_mem [0:DEPTH-1];
 logic [$clog2(DEPTH)-1:0]  write_ptr;
 logic [$clog2(DEPTH)-1:0]  read_ptr;
 
-// output assignments
-// assign m_axis_tdata = fifo_data_mem[read_ptr];
-// assign m_axis_tstrb = fifo_strb_mem[read_ptr];
-// assign m_axis_tkeep = fifo_keep_mem[read_ptr];
 
-// internal signals
+// internal signals declaration
 logic valid_input_transaction;
-assign valid_input_transaction = s00_axis_tvalid && s00_axis_tready;
 logic valid_output_transaction;
-assign valid_output_transaction = m00_axis_tvalid && m00_axis_tready;
 logic read_ptr_equal_write_ptr;
-assign read_ptr_equal_write_ptr = (read_ptr == write_ptr);
 logic valid_data_in_fifo;
-assign valid_data_in_fifo = read_ptr < write_ptr;
 logic valid_data_next_round;
+logic keep_packet;
+logic drop_packet;
+// internal signal assignments
+assign valid_input_transaction = s00_axis_tvalid && s00_axis_tready;
+assign valid_output_transaction = m00_axis_tvalid && m00_axis_tready;
+assign read_ptr_equal_write_ptr = (read_ptr == write_ptr);
+assign valid_data_in_fifo = read_ptr < write_ptr;
 assign valid_data_next_round = (read_ptr + 1) < write_ptr;
+assign keep_packet = packet_output_valid && packet_output_good;
+assign drop_packet = packet_output_valid && !packet_output_good;
 
-typedef enum logic [1:0] {
+typedef enum logic [2:0] {
     NFILL_NDRAIN,
     FILL_ONLY,
     DRAIN_ONLY,
-    FILL_AND_DRAIN
+    FILL_AND_DRAIN,
+    FILL_THEN_DROP
 } state_t;
 state_t cur_state;
 
@@ -89,29 +93,47 @@ always_ff @(posedge aclk) begin
             // wait for tlast or read enable 
             FILL_ONLY: begin 
                 // handle transition
-                case ({read_enable, s00_axis_tlast})
-                    2'b00: begin
+                case ({packet_output_valid, packet_output_good, s00_axis_tlast})
+                    3'b000: begin
                         // stay in FILL_ONLY
                         s00_axis_tready <= 1;
                         m00_axis_tvalid <= 0;
                     end
-                    2'b10: begin // read enable only
+                    3'b110: begin // keep_packet only
                         cur_state <= FILL_AND_DRAIN;
                         read_ptr <= 0; // reset read pointer
                         s00_axis_tready <= 1;
                         m00_axis_tvalid <= (valid_data_in_fifo);;
                     end
-                    2'b01: begin // tlast only
+                    3'b100: begin // drop_packet only
+                        cur_state <= FILL_THEN_DROP;
+                        read_ptr <= 0; // reset read pointer
+                        s00_axis_tready <= 1;
+                        m00_axis_tvalid <= 0;
+                    end
+                    3'b001: begin // tlast only
                         cur_state <= NFILL_NDRAIN;
                         read_ptr <= 0; // reset read pointer
                         s00_axis_tready <= 0;
                         m00_axis_tvalid <= 0;
                     end
-                    2'b11: begin
+                    3'b111: begin // keep_packet and tlast
                         cur_state <= DRAIN_ONLY;
                         read_ptr <= 0; // reset read pointer
                         s00_axis_tready <= 0;
                         m00_axis_tvalid <= 1;
+                    end
+                    3'b101: begin // drop_packet and tlast
+                        cur_state <= FILL_ONLY; // RESET FIFO
+                        read_ptr <= 0; // reset read pointer
+                        write_ptr <= 0; // reset write pointer  
+                        s00_axis_tready <= 1;
+                        m00_axis_tvalid <= 0;
+                    end
+                    default: begin
+                        // stay in FILL_ONLY
+                        s00_axis_tready <= 1;
+                        m00_axis_tvalid <= 0;
                     end
                 endcase
                 // handle writes 
@@ -145,8 +167,6 @@ always_ff @(posedge aclk) begin
                     m00_axis_tvalid <= 0;
                     $display("WARNING: AXIS FIFO read pointer exceeded write pointer, resetting FIFO to FILL_ONLY state");
                 end
-            
-                
             end
             // wait for tlast to be seen
             FILL_AND_DRAIN: begin 
@@ -176,12 +196,30 @@ always_ff @(posedge aclk) begin
             // wait for read enable
             NFILL_NDRAIN: begin 
                 // handle transition
-                if (read_enable) begin
+                if (keep_packet) begin
                     cur_state <= DRAIN_ONLY;
                     s00_axis_tready <= 0;
                     m00_axis_tvalid <= 1;
+                end else if (drop_packet) begin
+                    cur_state <= FILL_ONLY;
+                    write_ptr <= 0; // reset write pointer
+                    read_ptr <= 0; // reset read pointer
+                    s00_axis_tready <= 1;
+                    m00_axis_tvalid <= 0;
                 end
             end
+            // wait for a tlast to reset, send no data out
+            FILL_THEN_DROP: begin 
+                // handle transition
+                if (valid_input_transaction && s00_axis_tlast) begin
+                    cur_state <= FILL_ONLY;
+                    write_ptr <= 0; // reset write pointer
+                    read_ptr <= 0; // reset read pointer
+                    s00_axis_tready <= 1;
+                    m00_axis_tvalid <= 0;
+                end 
+            end
+
             default: begin
                 cur_state <= FILL_ONLY; 
                 s00_axis_tready <= 1;
