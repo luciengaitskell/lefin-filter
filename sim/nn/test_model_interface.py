@@ -6,8 +6,8 @@ from cocotb.clock import Clock
 from cocotb.triggers import ClockCycles
 import torch
 from sim.bus.axis import AXIS_Testbench
-from sim.util.sim import build_and_run_sim, reset
-from sim.util.torch import int8_torch_to_packed
+from sim.lib.sim import build_and_run_sim, reset
+from sim.lib.torch import int8_torch_to_packed
 
 
 C_S00_AXIS_TDATA_WIDTH = 32
