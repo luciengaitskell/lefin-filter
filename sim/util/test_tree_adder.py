@@ -5,7 +5,7 @@ from cocotb.triggers import ReadOnly
 from cocotb.triggers import Timer
 import torch
 from torch import nn, Tensor
-from sim.util.sim import build_and_run_sim
+from sim.lib.sim import build_and_run_sim
 
 
 NUM_INPUTS = 4

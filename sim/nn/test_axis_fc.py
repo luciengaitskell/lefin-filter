@@ -7,8 +7,8 @@ from cocotb.triggers import ClockCycles
 import torch
 from torch import nn, Tensor
 from sim.bus.axis import AXIS_Testbench
-from sim.util.sim import build_and_run_sim, reset
-from sim.util.torch import (
+from sim.lib.sim import build_and_run_sim, reset
+from sim.lib.torch import (
     int8_torch_to_packed,
     packed_to_int8_torch,
     long_torch_to_packed,
