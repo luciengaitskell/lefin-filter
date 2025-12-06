@@ -142,5 +142,5 @@ if __name__ == "__main__":
             "OUTPUT_BIT_WIDTH": OUTPUT_BIT_WIDTH,
             "WEIGHT_BIT_WIDTH": WEIGHT_BIT_WIDTH,
             "BIAS_BIT_WIDTH": BIAS_BIT_WIDTH,
-        }
+        },
     )
