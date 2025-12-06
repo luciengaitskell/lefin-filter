@@ -1,8 +1,4 @@
 // takes signed inputs, multiplies by signed weights, sums all products + bias to produce signed outputs
-/* verilator lint_off DECLFILENAME */
-/* verilator lint_off WIDTHEXPAND */
-/* verilator lint_off EOFNEWLINE */
-/* verilator lint_off WIDTHTRUNC */
 module axis_fc #(
     // input layer parameters
     // expect [CH1_DATA, CH2_DATA, ..., CHn_DATA] format
@@ -70,9 +66,9 @@ end
 logic signed [OUTPUT_BIT_WIDTH-1:0] outputs[0:ELEMENTS_OUT_COUNT-1];
 always_comb begin
     for (integer out_i = 0; out_i < ELEMENTS_OUT_COUNT; out_i++) begin
-        outputs[out_i] = s_biases[out_i];
+        outputs[out_i] = (OUTPUT_BIT_WIDTH)'(s_biases[out_i]);
         for (integer in_i = 0; in_i < ELEMENTS_IN_COUNT; in_i++) begin
-            outputs[out_i] = outputs[out_i] + post_mult_intermediates[out_i][in_i];
+            outputs[out_i] = outputs[out_i] + (OUTPUT_BIT_WIDTH)'(post_mult_intermediates[out_i][in_i]);
         end
     end
 end
@@ -89,4 +85,3 @@ assign s00_axis_tready = m00_axis_tready;
 assign m00_axis_tvalid = s00_axis_tvalid;
 assign m00_axis_tlast  = s00_axis_tlast;
 endmodule
-/* verilator lint_on DECLFILENAME */

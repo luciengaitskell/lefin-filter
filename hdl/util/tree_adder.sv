@@ -1,7 +1,5 @@
 // A signed adder that sums NUM_INPUTS inputs of INPUT_BIT_WIDTH bits each
 // The output sum is OUTPUT_BIT_WIDTH bits wide to prevent overflow
-/* verilator lint_off DECLFILENAME */
-/* verilator lint_off WIDTHEXPAND */
 module tree_adder #(
     parameter integer INPUT_BIT_WIDTH = 16,
     parameter integer NUM_INPUTS = 4,
@@ -23,9 +21,8 @@ always_comb begin
     integer i;
     sum = '0;
     for (i = 0; i < NUM_INPUTS; i++) begin
-        sum = sum + inputs[i];
+        sum = sum + (OUTPUT_BIT_WIDTH)'(inputs[i]);
     end
 end
 
 endmodule
-/* verilator lint_on DECLFILENAME */
