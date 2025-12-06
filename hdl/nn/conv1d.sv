@@ -6,7 +6,7 @@ package conv1d_pkg;
     return input_bit_width + weight_bit_width;
   endfunction
   function automatic int calculate_output_bit_width(int intermediate_bit_width, int kernel_width);
-    return intermediate_bit_width + $clog2(kernel_width);
+    return intermediate_bit_width + $clog2(kernel_width + 1);  // +1 for bias
   endfunction
 endpackage
 /* verilator lint_on DECLFILENAME */
@@ -29,6 +29,7 @@ module conv1d #(
     input wire signed [INPUT_BIT_WIDTH-1:0] inputs[0:KERNEL_WIDTH-1],
     input wire inputs_valid,
     input wire signed [WEIGHT_BIT_WIDTH-1:0] weights[0:CHANNEL_OUT_COUNT-1][0:KERNEL_WIDTH-1],
+    input wire signed [WEIGHT_BIT_WIDTH-1:0] biases[0:CHANNEL_OUT_COUNT-1],
     output logic signed [OUTPUT_BIT_WIDTH-1:0] activation[0:CHANNEL_OUT_COUNT-1],
     output logic activation_valid
 );
@@ -43,7 +44,7 @@ module conv1d #(
 
   always_comb begin
     for (integer channel_out = 0; channel_out < CHANNEL_OUT_COUNT; channel_out++) begin
-      adder_steps[channel_out][0] = OUTPUT_BIT_WIDTH'(intermediates[channel_out][0]);
+      adder_steps[channel_out][0] = OUTPUT_BIT_WIDTH'(biases[channel_out]) + OUTPUT_BIT_WIDTH'(intermediates[channel_out][0]);
       for (integer i = 1; i < KERNEL_WIDTH; i++) begin
         adder_steps[channel_out][i] = adder_steps[channel_out][i-1] + OUTPUT_BIT_WIDTH'(intermediates[channel_out][i]);
       end
