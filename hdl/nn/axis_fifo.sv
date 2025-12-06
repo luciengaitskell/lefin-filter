@@ -24,8 +24,8 @@ module axis_fifo #(
     input  wire                      m00_axis_tready,
 
     // Read enable single cycle high
-    input wire                       packet_output_valid,
-    input wire                       packet_output_good
+    input wire                       packet_input_valid,
+    input wire                       packet_input_good
 );
 
 
@@ -54,8 +54,8 @@ assign valid_output_transaction = m00_axis_tvalid && m00_axis_tready;
 assign read_ptr_equal_write_ptr = (read_ptr == write_ptr);
 assign valid_data_in_fifo = read_ptr < write_ptr;
 assign valid_data_next_round = (read_ptr + 1) < write_ptr;
-assign keep_packet = packet_output_valid && packet_output_good;
-assign drop_packet = packet_output_valid && !packet_output_good;
+assign keep_packet = packet_input_valid && packet_input_good;
+assign drop_packet = packet_input_valid && !packet_input_good;
 
 typedef enum logic [2:0] {
     NFILL_NDRAIN,
@@ -92,8 +92,16 @@ always_ff @(posedge aclk) begin
         case (cur_state)
             // wait for tlast or read enable 
             FILL_ONLY: begin 
+                // handle writes ******** THIS ORDER MATTERS FOR THE WRITE POINTER INDEXING *******
+                if (valid_input_transaction) begin
+                    fifo_data_mem[write_ptr] <= s00_axis_tdata;
+                    fifo_strb_mem[write_ptr] <= s00_axis_tstrb;
+                    fifo_keep_mem[write_ptr] <= s00_axis_tkeep;
+                    fifo_last_mem[write_ptr] <= s00_axis_tlast;
+                    write_ptr <= write_ptr + 1;
+                end 
                 // handle transition
-                case ({packet_output_valid, packet_output_good, s00_axis_tlast})
+                case ({packet_input_valid, packet_input_good, s00_axis_tlast})
                     3'b000: begin
                         // stay in FILL_ONLY
                         s00_axis_tready <= 1;
@@ -136,14 +144,6 @@ always_ff @(posedge aclk) begin
                         m00_axis_tvalid <= 0;
                     end
                 endcase
-                // handle writes 
-                if (valid_input_transaction) begin
-                    fifo_data_mem[write_ptr] <= s00_axis_tdata;
-                    fifo_strb_mem[write_ptr] <= s00_axis_tstrb;
-                    fifo_keep_mem[write_ptr] <= s00_axis_tkeep;
-                    fifo_last_mem[write_ptr] <= s00_axis_tlast;
-                    write_ptr <= write_ptr + 1;
-                end 
             end
             // wait for all data to be read out
             DRAIN_ONLY: begin
