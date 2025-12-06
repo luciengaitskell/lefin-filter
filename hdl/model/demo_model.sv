@@ -14,7 +14,7 @@ module demo_model #(
 
     output logic classification
 );
-  localparam integer CHANNEL_OUT_COUNT = 4;
+  localparam integer CHANNEL_OUT_COUNT = 8;
   localparam integer KERNEL_WIDTH = 25;
   localparam integer STRIDE = 1;
   localparam integer WEIGHT_BIT_WIDTH = 8;
@@ -118,6 +118,122 @@ module demo_model #(
       },
 
       // channel 3
+      '{
+          4,
+          4,
+          4,
+          4,
+          4,
+          4,
+          4,
+          4,
+          4,
+          4,
+          4,
+          4,
+          4,
+          4,
+          4,
+          4,
+          4,
+          4,
+          4,
+          4,
+          4,
+          4,
+          4,
+          4,
+          4
+      },
+      
+      // channel 4
+      '{
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1
+      },
+
+      // channel 5
+      '{
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2
+      },
+
+      // channel 6
+      '{
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3
+      },
+
+      // channel 7
       '{
           4,
           4,
