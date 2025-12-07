@@ -128,7 +128,7 @@ module axis_conv1d #(
 
   localparam integer RETAINED_PREVIOUS_INPUTS = (PREVIOUS_INPUTS) - INPUT_WIDTH;
   always_ff @(posedge aclk) begin
-    if (!aresetn) begin
+    if (!aresetn || (s00_axis_tlast && s00_axis_tvalid && s00_axis_tready)) begin
       previous_inputs_fill_cycles <= '0;
     end else begin
       if (s00_axis_tvalid && m00_axis_tready && !previous_inputs_filled) begin
