@@ -40,6 +40,7 @@ module model #(
   axis_conv1d #(
       .C_S00_AXIS_TDATA_WIDTH(C_S00_AXIS_TDATA_WIDTH),
       .KERNEL_WIDTH          (model_params::CONV1D_1_KERNEL_WIDTH),
+      .CHANNEL_IN_COUNT      (model_params::CONV1D_1_CHANNEL_IN_COUNT),
       .CHANNEL_OUT_COUNT     (model_params::CONV1D_1_CHANNEL_OUT_COUNT),
       .STRIDE                (model_params::CONV1D_1_STRIDE),
       .INPUT_BIT_WIDTH       (INPUT_BIT_WIDTH),
