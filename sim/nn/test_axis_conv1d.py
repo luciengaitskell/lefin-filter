@@ -17,14 +17,15 @@ from sim.lib.torch import (
 KERNEL_WIDTH = 5
 C_S00_AXIS_TDATA_WIDTH = 32
 INPUT_BIT_WIDTH = 8
+CHANNEL_IN_COUNT = 1
 CHANNEL_OUT_COUNT = 2
 WRITE_ITER = 11
 
 
 class Conv1dTestbench(AXIS_Testbench):
     def __init__(self, dut, layer, **kwargs):
-        super().__init__(dut, **kwargs)
-        self.scoreboard_queue: deque[tuple[Tensor, Tensor]]
+        super().__init__(dut, monitor_kwargs=dict(include_metadata=True), **kwargs)
+        self.scoreboard_queue: deque[tuple[dict, Tensor]]
 
         self.expected_data_out = []  # contains list of expected outputs (Growing)
         self.layer: nn.Conv1d = layer
@@ -33,7 +34,8 @@ class Conv1dTestbench(AXIS_Testbench):
         assert self.layer.padding[0] == 0, "Only no padding supported"
         self.input_buffer = None
 
-    def in_callback(self, raw_input):
+    def in_callback(self, input_and_metadata):
+        raw_input = input_and_metadata["data"]
         input_values = packed_to_int8_torch(raw_input, self.dut.INPUT_WIDTH.value)
         super().in_callback(input_values)
 
@@ -51,20 +53,20 @@ class Conv1dTestbench(AXIS_Testbench):
             conv_output = conv_output[0, :, :num_parallel_convs]
             expected_result = conv_output.round().to(torch.long)
             self.expected_data_out.append(expected_result)
-            self.scoreboard_queue.append((input_values, expected_result))
+            self.scoreboard_queue.append((input_and_metadata, expected_result))
 
         if full_input.numel() >= kernel_width - 1:
             self.input_buffer = full_input[-(kernel_width - 1) :]
         else:
             self.input_buffer = full_input
 
-    def compare_fn(self, result):
+    def compare_fn(self, result_and_metadata):
         """Compare the received transaction with the expected output."""
         if not self.scoreboard_queue:
             return False
 
         result = packed_to_long_torch(
-            result,
+            result_and_metadata["data"],
             int(self.dut.OUTPUT_BIT_WIDTH.value),
             int(self.dut.NUM_PARALLEL_CONVS.value)
             * int(self.dut.CHANNEL_OUT_COUNT.value),
@@ -75,7 +77,8 @@ class Conv1dTestbench(AXIS_Testbench):
             )
         )
 
-        input_vals, expected_result = self.scoreboard_queue.popleft()
+        input_and_metadata, expected_result = self.scoreboard_queue.popleft()
+        input_vals = input_and_metadata["data"]
         result_okay = torch.isclose(result, expected_result, rtol=0.05, atol=0.1)
         if not result_okay.all():
             self.scoreboard.errors += 1
@@ -86,6 +89,28 @@ class Conv1dTestbench(AXIS_Testbench):
             self.dut._log.info(
                 f"Match! Got {result},expected {expected_result} for input {input_vals}"
             )
+
+        def cascade_and(x: int, width: int) -> int:
+            """Return integer whose bit i = AND of bits 0..i of x."""
+            out = 0
+            running = 1
+            for i in range(width):
+                running &= (x >> i) & 1
+                out |= running << i
+            return out
+
+        metadata_okay = True
+        expected_strb = cascade_and(
+            input_and_metadata["strb"],
+            int(self.dut.INPUT_WIDTH.value),
+        )
+        metadata_okay &= result_and_metadata["strb"] == expected_strb
+        if not metadata_okay:
+            self.scoreboard.errors += 1
+            self.dut._log.error(
+                f"Metadata mismatch! Got strb {result_and_metadata['strb']}, expected {expected_strb}"
+            )
+
         return result_okay
 
 
@@ -95,19 +120,29 @@ async def test_a(dut):
     # Integer-like Conv1d: use float weights with integer values and integer inputs
     with torch.no_grad():
         layer = nn.Conv1d(
-            in_channels=1,
+            in_channels=CHANNEL_IN_COUNT,
             out_channels=CHANNEL_OUT_COUNT,
             kernel_size=KERNEL_WIDTH,
             stride=1,
             padding=0,
             bias=False,
         )
-        int_kernel = torch.tensor([[1, 0, 4, 0, 0], [0, 1, 0, -1, 0]], dtype=torch.int8)
-        assert int_kernel.shape == (layer.out_channels, KERNEL_WIDTH), (
-            f"Kernel shape mismatch {int_kernel.shape} | {layer.weight.shape}"
+        int_kernel = torch.tensor(
+            [[[1, 0, 4, 0, 0]], [[0, 1, 0, -1, 0]]], dtype=torch.int8
+        )
+        int_biases = torch.tensor([1, -1], dtype=torch.int8)
+        assert int_kernel.shape == (
+            layer.out_channels,
+            layer.in_channels,
+            KERNEL_WIDTH,
+        ), f"Kernel shape mismatch {int_kernel.shape} | {layer.weight.shape}"
+        assert int_biases.shape == (layer.out_channels,), (
+            f"Biases shape mismatch {int_biases.shape} | {(layer.out_channels,)}"
         )
         layer.weight.copy_(int_kernel.float().view_as(layer.weight))
+        layer.bias = nn.Parameter(int_biases.float())
         dut.weights.value = int_kernel.tolist()
+        dut.biases.value = int_biases.tolist()
 
     tb = Conv1dTestbench(dut, layer=layer)
 
@@ -130,10 +165,20 @@ async def test_a(dut):
             (dut.INPUT_WIDTH.value,),
             dtype=torch.int8,
         )
+        strb = (1 << int(dut.INPUT_WIDTH.value)) - 1
+        # randomly zero out some strb bits (but always keep first byte valid)
+        for bit_idx in range(1, dut.INPUT_WIDTH.value):
+            if random.random() < 0.2:
+                strb &= ~(1 << bit_idx)
+
         tb.ind.append(
             {
                 "type": "write_single",
-                "contents": {"data": int8_torch_to_packed(x), "last": 0},
+                "contents": {
+                    "data": int8_torch_to_packed(x),
+                    "strb": strb,
+                    "last": 0,
+                },
             }
         )
         tb.ind.append({"type": "pause", "duration": random.randint(1, 6)})
@@ -165,6 +210,7 @@ if __name__ == "__main__":
             "KERNEL_WIDTH": KERNEL_WIDTH,
             "C_S00_AXIS_TDATA_WIDTH": C_S00_AXIS_TDATA_WIDTH,
             "INPUT_BIT_WIDTH": INPUT_BIT_WIDTH,
+            "CHANNEL_IN_COUNT": CHANNEL_IN_COUNT,
             "CHANNEL_OUT_COUNT": CHANNEL_OUT_COUNT,
         },
     )

@@ -19,6 +19,7 @@ which avoids the need for the complex buffering.
 module axis_conv1d #(
     parameter integer C_S00_AXIS_TDATA_WIDTH = 32,
     parameter integer KERNEL_WIDTH = 25,  // FIXME: this must be larger than INPUT_WIDTH
+    parameter integer CHANNEL_IN_COUNT = 1,
     parameter integer CHANNEL_OUT_COUNT = 1,
     parameter integer STRIDE = 1,
     parameter integer INPUT_BIT_WIDTH = 8,
@@ -36,7 +37,8 @@ module axis_conv1d #(
 
     input wire aclk,
     input wire aresetn,
-    input wire signed [WEIGHT_BIT_WIDTH-1:0] weights[0:CHANNEL_OUT_COUNT-1][0:(KERNEL_WIDTH-1)],
+    input wire signed [WEIGHT_BIT_WIDTH-1:0] weights[0:CHANNEL_OUT_COUNT-1][0:CHANNEL_IN_COUNT-1][0:(KERNEL_WIDTH-1)],
+    input wire signed [WEIGHT_BIT_WIDTH-1:0] biases[0:CHANNEL_OUT_COUNT-1],
 
     // Ports of Axi Slave Bus Interface S00_AXIS
     input wire s00_axis_tlast,
@@ -50,7 +52,7 @@ module axis_conv1d #(
     output logic m00_axis_tvalid,
     m00_axis_tlast,
     output logic [C_M00_AXIS_TDATA_WIDTH-1 : 0] m00_axis_tdata,
-    output logic [(C_M00_AXIS_TDATA_WIDTH/8)-1:0] m00_axis_tstrb
+    output logic [(C_M00_AXIS_TDATA_WIDTH/OUTPUT_BIT_WIDTH)-1:0] m00_axis_tstrb
 );
 
   initial begin
@@ -91,6 +93,14 @@ module axis_conv1d #(
     end
   end
 
+  logic conv_input_strb[0:NUM_PARALLEL_CONVS-1];
+  always_comb begin
+    conv_input_strb[0] = s00_axis_tstrb[0];
+    for (integer i = 1; i < NUM_PARALLEL_CONVS; i++) begin
+      conv_input_strb[i] = conv_input_strb[i-1] && s00_axis_tstrb[i];
+    end
+  end
+
   logic signed [OUTPUT_BIT_WIDTH-1:0] activations[0:NUM_PARALLEL_CONVS-1][0:CHANNEL_OUT_COUNT-1];
 
   generate
@@ -99,15 +109,17 @@ module axis_conv1d #(
           .INPUT_BIT_WIDTH(INPUT_BIT_WIDTH),
           .WEIGHT_BIT_WIDTH(WEIGHT_BIT_WIDTH),
           .KERNEL_WIDTH(KERNEL_WIDTH),
+          .CHANNEL_IN_COUNT(CHANNEL_IN_COUNT),
           .CHANNEL_OUT_COUNT(CHANNEL_OUT_COUNT),
           .STAGE_1_MULT(connector_pkg::COMBINATIONAL),
           .STAGE_2_ADD(connector_pkg::COMBINATIONAL)
       ) conv1d_parallel (
           .clk             (aclk),
           .inputs          (inputs[i+:KERNEL_WIDTH]),
-          .inputs_valid    (s00_axis_tvalid && previous_inputs_filled),
+          .inputs_valid    (s00_axis_tvalid && previous_inputs_filled && conv_input_strb[i]),
           // was considerign `&& m00_axis_tready` but I think it's wrong
           .weights         (weights),
+          .biases          (biases),
           .activation      (activations[i]),
           .activation_valid(m00_axis_tstrb[i])
       );
@@ -116,7 +128,7 @@ module axis_conv1d #(
 
   localparam integer RETAINED_PREVIOUS_INPUTS = (PREVIOUS_INPUTS) - INPUT_WIDTH;
   always_ff @(posedge aclk) begin
-    if (!aresetn) begin
+    if (!aresetn || (s00_axis_tlast && s00_axis_tvalid && s00_axis_tready)) begin
       previous_inputs_fill_cycles <= '0;
     end else begin
       if (s00_axis_tvalid && m00_axis_tready && !previous_inputs_filled) begin
