@@ -50,7 +50,7 @@ module axis_conv1d #(
     output logic m00_axis_tvalid,
     m00_axis_tlast,
     output logic [C_M00_AXIS_TDATA_WIDTH-1 : 0] m00_axis_tdata,
-    output logic [(C_M00_AXIS_TDATA_WIDTH/8)-1:0] m00_axis_tstrb
+    output logic [(C_M00_AXIS_TDATA_WIDTH/OUTPUT_BIT_WIDTH)-1:0] m00_axis_tstrb
 );
 
   initial begin
