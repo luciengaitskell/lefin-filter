@@ -52,7 +52,7 @@ module axis_conv1d #(
     output logic m00_axis_tvalid,
     m00_axis_tlast,
     output logic [C_M00_AXIS_TDATA_WIDTH-1 : 0] m00_axis_tdata,
-    output logic [(C_M00_AXIS_TDATA_WIDTH/8)-1:0] m00_axis_tstrb
+    output logic [(C_M00_AXIS_TDATA_WIDTH/OUTPUT_BIT_WIDTH)-1:0] m00_axis_tstrb
 );
 
   initial begin
@@ -93,6 +93,14 @@ module axis_conv1d #(
     end
   end
 
+  logic conv_input_strb[0:NUM_PARALLEL_CONVS-1];
+  always_comb begin
+    conv_input_strb[0] = s00_axis_tstrb[0];
+    for (integer i = 1; i < NUM_PARALLEL_CONVS; i++) begin
+      conv_input_strb[i] = conv_input_strb[i-1] && s00_axis_tstrb[i];
+    end
+  end
+
   logic signed [OUTPUT_BIT_WIDTH-1:0] activations[0:NUM_PARALLEL_CONVS-1][0:CHANNEL_OUT_COUNT-1];
 
   generate
@@ -108,7 +116,7 @@ module axis_conv1d #(
       ) conv1d_parallel (
           .clk             (aclk),
           .inputs          (inputs[i+:KERNEL_WIDTH]),
-          .inputs_valid    (s00_axis_tvalid && previous_inputs_filled),
+          .inputs_valid    (s00_axis_tvalid && previous_inputs_filled && conv_input_strb[i]),
           // was considerign `&& m00_axis_tready` but I think it's wrong
           .weights         (weights),
           .biases          (biases),
