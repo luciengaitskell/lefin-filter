@@ -133,7 +133,11 @@ async def test_a(dut):
         tb.ind.append(
             {
                 "type": "write_single",
-                "contents": {"data": int8_torch_to_packed(x), "last": 0},
+                "contents": {
+                    "data": int8_torch_to_packed(x),
+                    "strb": (1 << int(dut.INPUT_WIDTH.value)) - 1,
+                    "last": 0,
+                },
             }
         )
         tb.ind.append({"type": "pause", "duration": random.randint(1, 6)})

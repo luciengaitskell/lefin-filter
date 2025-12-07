@@ -132,6 +132,10 @@ class M_AXIS_Driver(AXIS_Driver):
             await self.wait_for_write_region()
             self.bus.axis_tdata.value = data
             self.bus.axis_tlast.value = last
+            if "strb" in contents:
+                self.bus.axis_tstrb.value = contents["strb"]
+            if "keep" in contents:
+                self.bus.axis_tkeep.value = contents["keep"]
             self.bus.axis_tvalid.value = 1
             await self.wait_for_transaction()
             self.bus.axis_tvalid.value = 0
