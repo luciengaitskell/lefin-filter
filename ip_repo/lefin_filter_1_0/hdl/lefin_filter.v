@@ -73,8 +73,8 @@
         .C_S00_AXIS_TDATA_WIDTH(C_S00_AXIS_TDATA_WIDTH),
         .BIT_WIDTH             (8)
     ) lefin_filter (
-        .aclk           (aclk),
-        .aresetn        (aresetn),
+        .aclk           (s00_axis_aclk),
+        .aresetn        (s00_axis_aresetn),
         .s00_axis_tlast (s00_axis_tlast),
         .s00_axis_tvalid(s00_axis_tvalid),
         .s00_axis_tdata (s00_axis_tdata),
