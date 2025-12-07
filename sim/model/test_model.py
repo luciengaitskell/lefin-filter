@@ -83,7 +83,7 @@ class ModelTestbench(AXIS_Testbench):
                 int(self.dut.OUTPUT_BIT_WIDTH.value),
                 2,
             )
-            .view((2, 1))
+            .view((1, 2))
             .to(torch.int64)
         )
 
