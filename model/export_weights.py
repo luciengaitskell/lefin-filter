@@ -152,6 +152,7 @@ def export_svh(
     sections = [
         "// Auto-generated from int8 checkpoint",
         f"// source: {ckpt_path}",
+        "// verilog_format: off",
         "`ifndef MODEL_WEIGHTS_SVH",
         "`define MODEL_WEIGHTS_SVH",
         "",
@@ -258,7 +259,8 @@ def export_svh(
     sections.append(f"  localparam int WEIGHT_BIT_WIDTH = {global_bit_width};\n")
     sections.extend(data_sections)
     sections.append(f"endpackage : {package_name}\n")
-    sections.append("`endif // MODEL_WEIGHTS_SVH\n")
+    sections.append("`endif // MODEL_WEIGHTS_SVH")
+    sections.append("// verilog_format: on\n")
     out_path.parent.mkdir(parents=True, exist_ok=True)
     out_path.write_text("\n".join(sections))
     typer.echo(f"Wrote {out_path}")
