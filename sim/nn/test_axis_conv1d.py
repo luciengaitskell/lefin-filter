@@ -23,8 +23,8 @@ WRITE_ITER = 11
 
 class Conv1dTestbench(AXIS_Testbench):
     def __init__(self, dut, layer, **kwargs):
-        super().__init__(dut, **kwargs)
-        self.scoreboard_queue: deque[tuple[Tensor, Tensor]]
+        super().__init__(dut, monitor_kwargs=dict(include_metadata=True), **kwargs)
+        self.scoreboard_queue: deque[tuple[dict, Tensor]]
 
         self.expected_data_out = []  # contains list of expected outputs (Growing)
         self.layer: nn.Conv1d = layer
@@ -33,7 +33,8 @@ class Conv1dTestbench(AXIS_Testbench):
         assert self.layer.padding[0] == 0, "Only no padding supported"
         self.input_buffer = None
 
-    def in_callback(self, raw_input):
+    def in_callback(self, input_and_metadata):
+        raw_input = input_and_metadata["data"]
         input_values = packed_to_int8_torch(raw_input, self.dut.INPUT_WIDTH.value)
         super().in_callback(input_values)
 
@@ -51,20 +52,20 @@ class Conv1dTestbench(AXIS_Testbench):
             conv_output = conv_output[0, :, :num_parallel_convs]
             expected_result = conv_output.round().to(torch.long)
             self.expected_data_out.append(expected_result)
-            self.scoreboard_queue.append((input_values, expected_result))
+            self.scoreboard_queue.append((input_and_metadata, expected_result))
 
         if full_input.numel() >= kernel_width - 1:
             self.input_buffer = full_input[-(kernel_width - 1) :]
         else:
             self.input_buffer = full_input
 
-    def compare_fn(self, result):
+    def compare_fn(self, result_and_metadata):
         """Compare the received transaction with the expected output."""
         if not self.scoreboard_queue:
             return False
 
         result = packed_to_long_torch(
-            result,
+            result_and_metadata["data"],
             int(self.dut.OUTPUT_BIT_WIDTH.value),
             int(self.dut.NUM_PARALLEL_CONVS.value)
             * int(self.dut.CHANNEL_OUT_COUNT.value),
@@ -75,7 +76,8 @@ class Conv1dTestbench(AXIS_Testbench):
             )
         )
 
-        input_vals, expected_result = self.scoreboard_queue.popleft()
+        input_and_metadata, expected_result = self.scoreboard_queue.popleft()
+        input_vals = input_and_metadata["data"]
         result_okay = torch.isclose(result, expected_result, rtol=0.05, atol=0.1)
         if not result_okay.all():
             self.scoreboard.errors += 1
@@ -86,6 +88,28 @@ class Conv1dTestbench(AXIS_Testbench):
             self.dut._log.info(
                 f"Match! Got {result},expected {expected_result} for input {input_vals}"
             )
+
+        def cascade_and(x: int, width: int) -> int:
+            """Return integer whose bit i = AND of bits 0..i of x."""
+            out = 0
+            running = 1
+            for i in range(width):
+                running &= (x >> i) & 1
+                out |= running << i
+            return out
+
+        metadata_okay = True
+        expected_strb = cascade_and(
+            input_and_metadata["strb"],
+            int(self.dut.INPUT_WIDTH.value),
+        )
+        metadata_okay &= result_and_metadata["strb"] == expected_strb
+        if not metadata_okay:
+            self.scoreboard.errors += 1
+            self.dut._log.error(
+                f"Metadata mismatch! Got strb {result_and_metadata['strb']}, expected {expected_strb}"
+            )
+
         return result_okay
 
 
@@ -130,12 +154,18 @@ async def test_a(dut):
             (dut.INPUT_WIDTH.value,),
             dtype=torch.int8,
         )
+        strb = (1 << int(dut.INPUT_WIDTH.value)) - 1
+        # randomly zero out some strb bits (but always keep first byte valid)
+        for bit_idx in range(1, dut.INPUT_WIDTH.value):
+            if random.random() < 0.2:
+                strb &= ~(1 << bit_idx)
+
         tb.ind.append(
             {
                 "type": "write_single",
                 "contents": {
                     "data": int8_torch_to_packed(x),
-                    "strb": (1 << int(dut.INPUT_WIDTH.value)) - 1,
+                    "strb": strb,
                     "last": 0,
                 },
             }
