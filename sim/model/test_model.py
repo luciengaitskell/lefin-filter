@@ -11,6 +11,7 @@ from sim.lib.sim import build_and_run_sim, reset
 from sim.lib.torch import (
     int8_torch_to_packed,
     packed_to_long_torch,
+    long_torch_to_packed,
 )
 from model.dataset import (
     DEFAULT_CONFIG,
@@ -72,14 +73,14 @@ class ModelTestbench(AXIS_Testbench):
         )
         super().in_callback(input_values)
 
-    def compare_fn(self, result):
+    def compare_fn(self, raw_result):
         """Compare the received transaction with the expected output."""
         if not self.scoreboard_queue:
             return False
 
         result = (
             packed_to_long_torch(
-                result,
+                raw_result,
                 int(self.dut.OUTPUT_BIT_WIDTH.value),
                 2,
             )
@@ -91,8 +92,13 @@ class ModelTestbench(AXIS_Testbench):
         result_okay = torch.isclose(result, expected_result, rtol=0.05, atol=0)
         if not result_okay.all():
             self.scoreboard.errors += 1
+            expected_raw = long_torch_to_packed(
+                expected_result.view(-1),
+                int(self.dut.OUTPUT_BIT_WIDTH.value),
+            )
+
             self.dut._log.error(
-                f"Mismatch! Got {result}, expected {expected_result} for input {input_vals}"
+                f"Mismatch! Got {result}, expected {expected_result} for input: \n{input_vals}\nRaw 0x{raw_result:x} != expected 0x{expected_raw:x}"
             )
         else:
             self.dut._log.info(
