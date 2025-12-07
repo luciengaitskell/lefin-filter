@@ -12,12 +12,13 @@
     "design_tree": {
       "xxv_ethernet_0": "",
       "zynq_ultra_ps_e_0": "",
-      "axis_data_fifo_0": "",
       "rst_ps8_0_99M": "",
       "axi_smc": "",
       "ilconstant_rst_off": "",
       "ilconstant_clksel_in": "",
-      "proc_sys_reset_fifo": ""
+      "proc_sys_reset_filter_s00": "",
+      "lefin_filter_0": "",
+      "proc_sys_reset_filter_m00": ""
     },
     "interface_ports": {
       "gt_ref_clk": {
@@ -1008,46 +1009,6 @@
           }
         }
       },
-      "axis_data_fifo_0": {
-        "vlnv": "xilinx.com:ip:axis_data_fifo:2.0",
-        "ip_revision": "17",
-        "xci_name": "design_1_axis_data_fifo_0_0",
-        "xci_path": "ip/design_1_axis_data_fifo_0_0/design_1_axis_data_fifo_0_0.xci",
-        "inst_hier_path": "axis_data_fifo_0",
-        "has_run_ip_tcl": "true",
-        "parameters": {
-          "IS_ACLK_ASYNC": {
-            "value": "1"
-          }
-        },
-        "interface_ports": {
-          "S_AXIS": {
-            "bd_attributes": {
-              "BRIDGES": {
-                "value": "M_AXIS",
-                "value_src": "auto"
-              },
-              "TYPE": {
-                "value": "INTERIOR",
-                "value_src": "auto"
-              }
-            },
-            "vlnv": "xilinx.com:interface:axis_rtl:1.0",
-            "mode": "Slave",
-            "bridges": [
-              "M_AXIS"
-            ]
-          },
-          "M_AXIS": {
-            "bd_attributes": {
-              "TYPE": {
-                "value": "INTERIOR",
-                "value_src": "auto"
-              }
-            }
-          }
-        }
-      },
       "rst_ps8_0_99M": {
         "vlnv": "xilinx.com:ip:proc_sys_reset:5.0",
         "ip_revision": "17",
@@ -1065,7 +1026,7 @@
         "has_run_ip_tcl": "true",
         "parameters": {
           "NUM_MI": {
-            "value": "2"
+            "value": "3"
           },
           "NUM_SI": {
             "value": "2"
@@ -1086,11 +1047,12 @@
             },
             "bridges": [
               "M00_AXI",
-              "M01_AXI"
+              "M01_AXI",
+              "M02_AXI"
             ],
             "bd_attributes": {
               "BRIDGES": {
-                "value": "M00_AXI:M01_AXI",
+                "value": "M00_AXI:M01_AXI:M02_AXI",
                 "value_src": "auto"
               },
               "TYPE": {
@@ -1113,11 +1075,12 @@
             },
             "bridges": [
               "M00_AXI",
-              "M01_AXI"
+              "M01_AXI",
+              "M02_AXI"
             ],
             "bd_attributes": {
               "BRIDGES": {
-                "value": "M00_AXI:M01_AXI",
+                "value": "M00_AXI:M01_AXI:M02_AXI",
                 "value_src": "auto"
               },
               "TYPE": {
@@ -1187,6 +1150,37 @@
                 "value_src": "default"
               }
             }
+          },
+          "M02_AXI": {
+            "mode": "Master",
+            "vlnv_bus_definition": "xilinx.com:interface:aximm:1.0",
+            "vlnv": "xilinx.com:interface:aximm_rtl:1.0",
+            "parameters": {
+              "NUM_READ_OUTSTANDING": {
+                "value": "8"
+              },
+              "NUM_READ_THREADS": {
+                "value": "1"
+              },
+              "NUM_WRITE_OUTSTANDING": {
+                "value": "8"
+              },
+              "NUM_WRITE_THREADS": {
+                "value": "1"
+              },
+              "RUSER_BITS_PER_BYTE": {
+                "value": "0"
+              },
+              "WUSER_BITS_PER_BYTE": {
+                "value": "0"
+              }
+            },
+            "bd_attributes": {
+              "TYPE": {
+                "value": "interior",
+                "value_src": "default"
+              }
+            }
           }
         }
       },
@@ -1209,12 +1203,36 @@
           }
         }
       },
-      "proc_sys_reset_fifo": {
+      "proc_sys_reset_filter_s00": {
         "vlnv": "xilinx.com:ip:proc_sys_reset:5.0",
         "ip_revision": "17",
         "xci_name": "design_1_proc_sys_reset_0_0",
         "xci_path": "ip/design_1_proc_sys_reset_0_0/design_1_proc_sys_reset_0_0.xci",
-        "inst_hier_path": "proc_sys_reset_fifo",
+        "inst_hier_path": "proc_sys_reset_filter_s00",
+        "has_run_ip_tcl": "true",
+        "parameters": {
+          "RESET_BOARD_INTERFACE": {
+            "value": "Custom"
+          },
+          "USE_BOARD_FLOW": {
+            "value": "true"
+          }
+        }
+      },
+      "lefin_filter_0": {
+        "vlnv": "user.org:user:lefin_filter:1.0",
+        "ip_revision": "6",
+        "xci_name": "design_1_lefin_filter_0_0",
+        "xci_path": "ip/design_1_lefin_filter_0_0/design_1_lefin_filter_0_0.xci",
+        "inst_hier_path": "lefin_filter_0",
+        "has_run_ip_tcl": "true"
+      },
+      "proc_sys_reset_filter_m00": {
+        "vlnv": "xilinx.com:ip:proc_sys_reset:5.0",
+        "ip_revision": "17",
+        "xci_name": "design_1_proc_sys_reset_0_1",
+        "xci_path": "ip/design_1_proc_sys_reset_0_1/design_1_proc_sys_reset_0_1.xci",
+        "inst_hier_path": "proc_sys_reset_filter_m00",
         "has_run_ip_tcl": "true",
         "parameters": {
           "RESET_BOARD_INTERFACE": {
@@ -1239,10 +1257,10 @@
           "xxv_ethernet_0/s_axi_1"
         ]
       },
-      "axis_data_fifo_0_M_AXIS": {
+      "axi_smc_M02_AXI": {
         "interface_ports": [
-          "xxv_ethernet_0/axis_tx_0",
-          "axis_data_fifo_0/M_AXIS"
+          "axi_smc/M02_AXI",
+          "lefin_filter_0/S00_AXI"
         ]
       },
       "diff_clock_rtl_1": {
@@ -1251,10 +1269,16 @@
           "xxv_ethernet_0/gt_ref_clk"
         ]
       },
+      "lefin_filter_0_M00_AXIS": {
+        "interface_ports": [
+          "xxv_ethernet_0/axis_tx_0",
+          "lefin_filter_0/M00_AXIS"
+        ]
+      },
       "xxv_ethernet_0_axis_rx_0": {
         "interface_ports": [
-          "xxv_ethernet_0/axis_rx_0",
-          "axis_data_fifo_0/S_AXIS"
+          "lefin_filter_0/S00_AXIS",
+          "xxv_ethernet_0/axis_rx_0"
         ]
       },
       "xxv_ethernet_0_gt_serial_port": {
@@ -1301,10 +1325,16 @@
           "xxv_ethernet_0/rxoutclksel_in_1"
         ]
       },
-      "proc_sys_reset_0_peripheral_aresetn": {
+      "proc_sys_reset_fifo_peripheral_aresetn": {
         "ports": [
-          "proc_sys_reset_fifo/peripheral_aresetn",
-          "axis_data_fifo_0/s_axis_aresetn"
+          "proc_sys_reset_filter_s00/peripheral_aresetn",
+          "lefin_filter_0/s00_axis_aresetn"
+        ]
+      },
+      "proc_sys_reset_filter_m00_peripheral_aresetn": {
+        "ports": [
+          "proc_sys_reset_filter_m00/peripheral_aresetn",
+          "lefin_filter_0/m00_axis_aresetn"
         ]
       },
       "rst_ps8_0_99M_peripheral_aresetn": {
@@ -1312,7 +1342,8 @@
           "rst_ps8_0_99M/peripheral_aresetn",
           "xxv_ethernet_0/s_axi_aresetn_0",
           "axi_smc/aresetn",
-          "xxv_ethernet_0/s_axi_aresetn_1"
+          "xxv_ethernet_0/s_axi_aresetn_1",
+          "lefin_filter_0/s00_axi_aresetn"
         ]
       },
       "rst_ps8_0_99M_peripheral_reset": {
@@ -1325,8 +1356,8 @@
         "ports": [
           "xxv_ethernet_0/rx_clk_out_0",
           "xxv_ethernet_0/rx_core_clk_0",
-          "axis_data_fifo_0/s_axis_aclk",
-          "proc_sys_reset_fifo/slowest_sync_clk"
+          "proc_sys_reset_filter_s00/slowest_sync_clk",
+          "lefin_filter_0/s00_axis_aclk"
         ]
       },
       "xxv_ethernet_0_rx_clk_out_1": {
@@ -1338,7 +1369,8 @@
       "xxv_ethernet_0_tx_clk_out_0": {
         "ports": [
           "xxv_ethernet_0/tx_clk_out_0",
-          "axis_data_fifo_0/m_axis_aclk"
+          "proc_sys_reset_filter_m00/slowest_sync_clk",
+          "lefin_filter_0/m00_axis_aclk"
         ]
       },
       "zynq_ultra_ps_e_0_pl_clk0": {
@@ -1350,14 +1382,16 @@
           "axi_smc/aclk",
           "xxv_ethernet_0/s_axi_aclk_0",
           "xxv_ethernet_0/s_axi_aclk_1",
-          "zynq_ultra_ps_e_0/maxihpm1_fpd_aclk"
+          "zynq_ultra_ps_e_0/maxihpm1_fpd_aclk",
+          "lefin_filter_0/s00_axi_aclk"
         ]
       },
       "zynq_ultra_ps_e_0_pl_resetn0": {
         "ports": [
           "zynq_ultra_ps_e_0/pl_resetn0",
           "rst_ps8_0_99M/ext_reset_in",
-          "proc_sys_reset_fifo/ext_reset_in"
+          "proc_sys_reset_filter_s00/ext_reset_in",
+          "proc_sys_reset_filter_m00/ext_reset_in"
         ]
       }
     },
@@ -1366,6 +1400,13 @@
         "address_spaces": {
           "Data": {
             "segments": {
+              "SEG_lefin_filter_0_S00_AXI_reg": {
+                "address_block": "/lefin_filter_0/S00_AXI/S00_AXI_reg",
+                "offset": "0x00A0020000",
+                "range": "64K",
+                "offset_base_param": "C_S00_AXI_BASEADDR",
+                "offset_high_param": "C_S00_AXI_HIGHADDR"
+              },
               "SEG_xxv_ethernet_0_Reg": {
                 "address_block": "/xxv_ethernet_0/s_axi_0/Reg",
                 "offset": "0x00A0000000",
