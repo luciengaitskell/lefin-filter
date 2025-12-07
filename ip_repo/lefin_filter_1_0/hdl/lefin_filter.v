@@ -1,7 +1,7 @@
 
 `timescale 1 ns / 1 ps
 
-	module lefin_filter #
+	module lefin_filter_wrapper #
 	(
 		// Users to add parameters here
 
@@ -32,7 +32,7 @@
 		input wire  s00_axis_aresetn,
 		output wire  s00_axis_tready,
 		input wire [C_S00_AXIS_TDATA_WIDTH-1 : 0] s00_axis_tdata,
-		input wire [(C_S00_AXIS_TDATA_WIDTH/8)-1 : 0] s00_axis_tstrb,
+		input wire [(C_S00_AXIS_TDATA_WIDTH/8)-1 : 0] s00_axis_tkeep,
 		input wire  s00_axis_tlast,
 		input wire  s00_axis_tvalid,
 
@@ -41,7 +41,7 @@
 		input wire  m00_axis_aresetn,
 		output wire  m00_axis_tvalid,
 		output wire [C_M00_AXIS_TDATA_WIDTH-1 : 0] m00_axis_tdata,
-		output wire [(C_M00_AXIS_TDATA_WIDTH/8)-1 : 0] m00_axis_tstrb,
+		output wire [(C_M00_AXIS_TDATA_WIDTH/8)-1 : 0] m00_axis_tkeep,
 		output wire  m00_axis_tlast,
 		input wire  m00_axis_tready,
 
@@ -69,31 +69,24 @@
 		input wire  s00_axi_rready
 	);
 // Instantiation of Axi Bus Interface S00_AXIS
-	lefin_filter_slave_stream_v1_0_S00_AXIS # ( 
-		.C_S_AXIS_TDATA_WIDTH(C_S00_AXIS_TDATA_WIDTH)
-	) lefin_filter_slave_stream_v1_0_S00_AXIS_inst (
-		.S_AXIS_ACLK(s00_axis_aclk),
-		.S_AXIS_ARESETN(s00_axis_aresetn),
-		.S_AXIS_TREADY(s00_axis_tready),
-		.S_AXIS_TDATA(s00_axis_tdata),
-		.S_AXIS_TSTRB(s00_axis_tstrb),
-		.S_AXIS_TLAST(s00_axis_tlast),
-		.S_AXIS_TVALID(s00_axis_tvalid)
-	);
 
-// Instantiation of Axi Bus Interface M00_AXIS
-	lefin_filter_master_stream_v1_0_M00_AXIS # ( 
-		.C_M_AXIS_TDATA_WIDTH(C_M00_AXIS_TDATA_WIDTH),
-		.C_M_START_COUNT(C_M00_AXIS_START_COUNT)
-	) lefin_filter_master_stream_v1_0_M00_AXIS_inst (
-		.M_AXIS_ACLK(m00_axis_aclk),
-		.M_AXIS_ARESETN(m00_axis_aresetn),
-		.M_AXIS_TVALID(m00_axis_tvalid),
-		.M_AXIS_TDATA(m00_axis_tdata),
-		.M_AXIS_TSTRB(m00_axis_tstrb),
-		.M_AXIS_TLAST(m00_axis_tlast),
-		.M_AXIS_TREADY(m00_axis_tready)
-	);
+    lefin_filter #(
+        .C_S00_AXIS_TDATA_WIDTH(C_S00_AXIS_TDATA_WIDTH),
+        .BIT_WIDTH             (8)
+    ) lefin_filter (
+        .aclk           (aclk),
+        .aresetn        (aresetn),
+        .s00_axis_tlast (s00_axis_tlast),
+        .s00_axis_tvalid(s00_axis_tvalid),
+        .s00_axis_tdata (s00_axis_tdata),
+        .s00_axis_tkeep (s00_axis_tkeep),
+        .s00_axis_tready(s00_axis_tready),
+        .m00_axis_tready(m00_axis_tready),
+        .m00_axis_tvalid(m00_axis_tvalid),
+        .m00_axis_tlast (m00_axis_tlast),
+        .m00_axis_tdata (m00_axis_tdata),
+        .m00_axis_tkeep (m00_axis_tkeep)
+    );
 
 // Instantiation of Axi Bus Interface S00_AXI
 	lefin_filter_slave_lite_v1_0_S00_AXI # ( 
