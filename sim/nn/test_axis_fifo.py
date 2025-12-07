@@ -79,7 +79,7 @@ async def test_fifos_basic(dut):
     goes fill_only -> nfill_ndrain -> drain_only  (done)-> fill_only
     """
     tb = FIFOsTestbench(dut)
-    cocotb.start_soon(Clock(dut.aclk, 10, units="ns").start())
+    cocotb.start_soon(Clock(dut.aclk, 10, unit="ns").start())
     await reset(dut.aclk, dut.aresetn, 2, 0)
 
     NUM_ITER = 5
@@ -105,7 +105,7 @@ async def test_fifos_basic(dut):
 async def test_fifos_basic2(dut):
     """basic test but goes fill_only -> fill_and_drain -> drain_only -> fill_only"""
     tb = FIFOsTestbench(dut)
-    cocotb.start_soon(Clock(dut.aclk, 10, units="ns").start())
+    cocotb.start_soon(Clock(dut.aclk, 10, unit="ns").start())
     await reset(dut.aclk, dut.aresetn, 2, 0)
 
     NUM_ITER = 5
@@ -133,7 +133,7 @@ async def test_fifos_basic2(dut):
 async def test_fifos_basic3(dut):
     """test that goes from fill_only directly to drain_only (a read_enable and tlast at same time)"""
     tb = FIFOsTestbench(dut)
-    cocotb.start_soon(Clock(dut.aclk, 10, units="ns").start())
+    cocotb.start_soon(Clock(dut.aclk, 10, unit="ns").start())
     await reset(dut.aclk, dut.aresetn, 2, 0)
 
     NUM_ITER = 5
@@ -165,7 +165,7 @@ async def test_fifos_backpressure(dut):
     should still pass data through correctly
     """
     tb = FIFOsTestbench(dut)
-    cocotb.start_soon(Clock(dut.aclk, 10, units="ns").start())
+    cocotb.start_soon(Clock(dut.aclk, 10, unit="ns").start())
     await reset(dut.aclk, dut.aresetn, 2, 0)
 
     NUM_ITER = 10
@@ -201,7 +201,7 @@ async def test_fifos_pause_sendside(dut):
     should still pass data through correctly
     """
     tb = FIFOsTestbench(dut)
-    cocotb.start_soon(Clock(dut.aclk, 10, units="ns").start())
+    cocotb.start_soon(Clock(dut.aclk, 10, unit="ns").start())
     await reset(dut.aclk, dut.aresetn, 2, 0)
 
     NUM_ITER = 10
@@ -236,7 +236,7 @@ async def test_fifos_vary_m_s_pauses(dut):
     should still pass data through correctly
     """
     tb = FIFOsTestbench(dut)
-    cocotb.start_soon(Clock(dut.aclk, 10, units="ns").start())
+    cocotb.start_soon(Clock(dut.aclk, 10, unit="ns").start())
     await reset(dut.aclk, dut.aresetn, 2, 0)
 
     NUM_ITER = 10
@@ -272,7 +272,7 @@ async def test_fifos_vary_m_s_pauses(dut):
 async def test_fifos_multiple_bursts_no_pause(dut):
     """test that sends multiple bursts of data separated no pauses"""
     tb = FIFOsTestbench(dut)
-    cocotb.start_soon(Clock(dut.aclk, 10, units="ns").start())
+    cocotb.start_soon(Clock(dut.aclk, 10, unit="ns").start())
     await reset(dut.aclk, dut.aresetn, 2, 0)
 
     NUM_BURSTS = 3
@@ -300,7 +300,7 @@ async def test_fifos_multiple_bursts_no_pause(dut):
 async def test_fifos_multiple_bursts_with_pause(dut):
     """test that sends multiple bursts of data separated by pauses"""
     tb = FIFOsTestbench(dut)
-    cocotb.start_soon(Clock(dut.aclk, 10, units="ns").start())
+    cocotb.start_soon(Clock(dut.aclk, 10, unit="ns").start())
     await reset(dut.aclk, dut.aresetn, 2, 0)
 
     NUM_BURSTS = 3
@@ -330,7 +330,7 @@ async def test_fifos_random_multi_burst(dut):
     """vary burst sizes, pauses, and read enables randomly"""
 
     tb = FIFOsTestbench(dut)
-    cocotb.start_soon(Clock(dut.aclk, 10, units="ns").start())
+    cocotb.start_soon(Clock(dut.aclk, 10, unit="ns").start())
     await reset(dut.aclk, dut.aresetn, 2, 0)
 
     NUM_BURSTS = 20
@@ -373,7 +373,7 @@ async def test_fifos_random_multi_burst(dut):
 async def test_fifos_drop_packet(dut):
     """test that drops a packet in the fifo"""
     tb = FIFOsTestbench(dut, ignore_scoreboard=True)
-    cocotb.start_soon(Clock(dut.aclk, 10, units="ns").start())
+    cocotb.start_soon(Clock(dut.aclk, 10, unit="ns").start())
     await reset(dut.aclk, dut.aresetn, 2, 0)
 
     NUM_ITER = 5
@@ -414,7 +414,7 @@ async def pulse_dut_packet_signal(dut, good: bool):
 async def test_fifos_drop_packet_with_good(dut):
     """test that drops a packet in the fifo but has good packet after"""
     tb = FIFOsTestbench(dut, ignore_scoreboard=True)
-    cocotb.start_soon(Clock(dut.aclk, 10, units="ns").start())
+    cocotb.start_soon(Clock(dut.aclk, 10, unit="ns").start())
     await reset(dut.aclk, dut.aresetn, 2, 0)
 
     NUM_ITER = 3
@@ -454,7 +454,7 @@ async def test_fifos_drop_packet_with_good(dut):
 async def test_fifos_sandwich_drop(dut):
     """test that has good packet, bad packet, good packet in sequence"""
     tb = FIFOsTestbench(dut, ignore_scoreboard=True)
-    cocotb.start_soon(Clock(dut.aclk, 10, units="ns").start())
+    cocotb.start_soon(Clock(dut.aclk, 10, unit="ns").start())
     await reset(dut.aclk, dut.aresetn, 2, 0)
 
     NUM_ITER = 3
@@ -503,7 +503,7 @@ async def test_fifos_drop_with_pauses_in_sending(dut):
     """test that drops packet but that packet is sent individually rather than in a burst"""
 
     tb = FIFOsTestbench(dut, ignore_scoreboard=True)
-    cocotb.start_soon(Clock(dut.aclk, 10, units="ns").start())
+    cocotb.start_soon(Clock(dut.aclk, 10, unit="ns").start())
     await reset(dut.aclk, dut.aresetn, 2, 0)
 
     NUM_ITER = 6
@@ -557,7 +557,7 @@ async def test_fifos_metadata(dut):
     tkeep tstrb tlast
     """
     tb = FIFOsTestbench(dut)
-    cocotb.start_soon(Clock(dut.aclk, 10, units="ns").start())
+    cocotb.start_soon(Clock(dut.aclk, 10, unit="ns").start())
     await reset(dut.aclk, dut.aresetn, 2, 0)
 
     NUM_ITER = 5
