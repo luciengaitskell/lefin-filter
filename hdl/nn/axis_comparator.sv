@@ -9,7 +9,7 @@ module axis_comparator #(
     // Ports of Axi Slave Bus Interface S00_AXIS
     input wire s00_axis_tvalid,
     input wire [C_S00_AXIS_TDATA_WIDTH-1 : 0] s00_axis_tdata,
-    input wire [C_S00_AXIS_TDATA_WIDTH/2-1:0] s00_axis_tstrb,
+    input wire [(C_S00_AXIS_TDATA_WIDTH/DATA_WIDTH)-1:0] s00_axis_tstrb,
     input wire s00_axis_tlast,
     output logic s00_axis_tready,
 
