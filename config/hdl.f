@@ -1,3 +1,4 @@
 -y hdl/nn
 -y hdl/util
+-y hdl/model
 -Ihdl/model/includes
