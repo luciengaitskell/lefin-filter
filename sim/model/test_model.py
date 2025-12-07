@@ -88,7 +88,7 @@ class ModelTestbench(AXIS_Testbench):
         )
 
         input_vals, expected_result = self.scoreboard_queue.popleft()
-        result_okay = torch.isclose(result, expected_result, rtol=0.05, atol=0.1)
+        result_okay = torch.isclose(result, expected_result, rtol=0.05, atol=0)
         if not result_okay.all():
             self.scoreboard.errors += 1
             self.dut._log.error(
