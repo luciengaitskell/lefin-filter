@@ -21,7 +21,7 @@ C_S00_AXIS_TKEEP_WIDTH = 4
 
 class FIFOsTestbench(AXIS_Testbench):
     def __init__(self, dut, ignore_scoreboard=False, **kwargs):
-        super().__init__(dut, **kwargs)
+        super().__init__(dut, monitor_kwargs=dict(include_metadata=True), **kwargs)
         self.scoreboard_queue: deque[tuple[Tensor, Tensor]]
 
         self.expected_data_out = []  # contains list of expected outputs (Growing)
@@ -40,11 +40,17 @@ class FIFOsTestbench(AXIS_Testbench):
                 return False
             
             inp, expected_output = self.scoreboard_queue.popleft()
-            okay = result == expected_output
+            okay = True
+            okay &= result["data"] == expected_output["data"]
+            okay &= result["last"] == expected_output["last"]
+            okay &= result["strb"] == expected_output["strb"]
+            okay &= result["keep"] == expected_output["keep"]
+            okay &= result["count"] == expected_output["count"]
             if not okay:
-                print(f"Mismatch! Input: {inp}, Expected: {expected_output}, Got: {result}")
+                self.scoreboard.errors += 1
+                print(f"Mismatch! Input:    {inp},\n      Expected: {expected_output},\n      Got:      {result}")
             else:
-                print(f"Match! Input: {inp}, Output: {result}")
+                print(f"Match! Input:    {inp},\n      Output:    {result}")
 
         return okay
 
@@ -453,7 +459,7 @@ async def test_fifos_drop_packet_with_good(dut):
     assert len(tb.data_in) == NUM_ITER*2, f"Should have recieved all input data, but got: {len(tb.data_in)} instead"
     assert len(tb.data_out) == NUM_ITER, f"Should have recieved only good output data, but got: {len(tb.data_out)} instead"
     for data in tb.data_out:
-        assert data == 0x22222222, f"Output data should only contain good packet data, got: {data} instead"
+        assert data["data"] == 0x22222222, f"Output data should only contain good packet data, got: {data} instead"
 
 @cocotb.test()
 async def test_fifos_sandwich_drop(dut):
@@ -504,9 +510,9 @@ async def test_fifos_sandwich_drop(dut):
     assert len(tb.data_in) == NUM_ITER*3, f"Should have recieved all input data, but got: {len(tb.data_in)} instead"
     assert len(tb.data_out) == NUM_ITER*2, f"Should have recieved only good output data, but got: {len(tb.data_out)} instead"
     for i, data in enumerate(tb.data_out):
-        assert data == expected_output[i], f"Output data should only contain good packet data, got: {data} instead"
+        assert data["data"] == expected_output[i], f"Output data should only contain good packet data, got: {data} instead"
 
-@cocotb.test
+@cocotb.test()
 async def test_fifos_drop_with_pauses_in_sending(dut):
     """ test that drops packet but that packet is sent individually rather than in a burst
     """
@@ -557,14 +563,39 @@ async def test_fifos_drop_with_pauses_in_sending(dut):
     await pulse_dut_packet_signal(dut, good=False)  # bad packet
     await ClockCycles(dut.aclk, NUM_ITER*5)
 
-    #print hex values of data in and out for debugging in one line
     assert len(tb.data_in) == NUM_ITER*3, f"Should have recieved all input data, but got: {len(tb.data_in)} instead"
     assert len(tb.data_out) == NUM_ITER, f"Should have recieved only good output data, but got: {len(tb.data_out)} instead"
     for data in tb.data_out:
-        assert data == 0xAAAAAAAA, f"Output data should only contain good packet data, got: {data} instead"
+        assert data["data"] == 0xAAAAAAAA, f"Output data should only contain good packet data, got: {data} instead"
 
+@cocotb.test()
+async def test_fifos_metadata(dut):
+    """ tests that recieves and outputs metadata correctly
+    tkeep tstrb tlast
+    """
+    tb = FIFOsTestbench(dut)
+    cocotb.start_soon(Clock(dut.aclk, 10, units="ns").start())
+    await reset(dut.aclk, dut.aresetn, 2, 0)
 
+    NUM_ITER = 5
+    max_data_value = 2 ** C_S00_AXIS_TDATA_WIDTH - 1
+    data_in = [random.randint(0, max_data_value) for _ in range(NUM_ITER)]
+    tstrb_in = [i for i in range(NUM_ITER)]
+    tkeep_in = [2*i for i in range(NUM_ITER)]
+    tb.ind.append({
+        "type": "write_burst",
+        "contents": {
+            "data": data_in,
+            "strb": tstrb_in,
+            "keep": tkeep_in,
+            }
+        })
+    tb.outd.append({"type": "read", "duration": NUM_ITER*10})
+    await ClockCycles(dut.aclk, NUM_ITER)  # wait a bit before starting
+    await pulse_dut_packet_signal(dut, good=True)
+    await ClockCycles(dut.aclk, NUM_ITER*5)
 
+    tb.assert_stuff()
 
 if __name__ == "__main__":
     build_and_run_sim(
