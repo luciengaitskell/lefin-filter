@@ -6,8 +6,9 @@ module model #(
     parameter int C_S00_AXIS_TDATA_WIDTH = 32,
     parameter int INPUT_BIT_WIDTH = 8,
     localparam int INPUT_WIDTH = C_S00_AXIS_TDATA_WIDTH / INPUT_BIT_WIDTH,
+    localparam int SIGNED_OUTPUT_BIT_WIDTH = INPUT_BIT_WIDTH + 1,
     localparam int CONV1D_1_INTERMEDIATE_BIT_WIDTH = conv1d_pkg::calculate_intermediate_bit_width(
-        INPUT_BIT_WIDTH, model_params::CONV1D_1_WEIGHT_BIT_WIDTH
+        SIGNED_OUTPUT_BIT_WIDTH, model_params::CONV1D_1_WEIGHT_BIT_WIDTH
     ),
     localparam int CONV1D_1_OUTPUT_BIT_WIDTH = conv1d_pkg::calculate_output_bit_width(
         CONV1D_1_INTERMEDIATE_BIT_WIDTH, model_params::CONV1D_1_KERNEL_WIDTH
@@ -35,6 +36,28 @@ module model #(
     output logic [(C_M00_AXIS_TDATA_WIDTH/OUTPUT_BIT_WIDTH)-1:0] m00_axis_tstrb
 );
 
+    localparam int SIGNED_C_M00_AXIS_TDATA_WIDTH = SIGNED_OUTPUT_BIT_WIDTH * INPUT_WIDTH;
+    logic [SIGNED_C_M00_AXIS_TDATA_WIDTH-1 : 0] signed_axis_tdata;
+    logic [INPUT_WIDTH-1:0] signed_axis_tstrb;
+    logic signed_axis_tvalid;
+    logic signed_axis_tlast;
+    logic signed_axis_tready;
+    axis_signer #(
+        .INPUT_BIT_WIDTH       (INPUT_BIT_WIDTH),
+        .INPUT_WIDTH           (INPUT_WIDTH)
+     ) axis_signer (
+        .s00_axis_tlast (s00_axis_tlast),
+        .s00_axis_tvalid(s00_axis_tvalid),
+        .s00_axis_tdata (s00_axis_tdata),
+        .s00_axis_tstrb (s00_axis_tstrb),
+        .s00_axis_tready(s00_axis_tready),
+        .m00_axis_tready(signed_axis_tready),
+        .m00_axis_tvalid(signed_axis_tvalid),
+        .m00_axis_tlast (signed_axis_tlast),
+        .m00_axis_tdata (signed_axis_tdata),
+        .m00_axis_tstrb (signed_axis_tstrb)
+    );
+
   localparam int CONV1D_1_NUM_PARALLEL_CONVS = ((INPUT_WIDTH) / model_params::CONV1D_1_STRIDE);
   localparam int CONV1D_1_C_M00_AXIS_TDATA_WIDTH = CONV1D_1_OUTPUT_BIT_WIDTH * CONV1D_1_NUM_PARALLEL_CONVS * model_params::CONV1D_1_CHANNEL_OUT_COUNT;
   logic [CONV1D_1_C_M00_AXIS_TDATA_WIDTH-1 : 0] conv1d_m00_axis_tdata;
@@ -43,23 +66,23 @@ module model #(
   logic conv1d_m00_axis_tlast;
   logic conv1d_m00_axis_tready;
   axis_conv1d #(
-      .C_S00_AXIS_TDATA_WIDTH(C_S00_AXIS_TDATA_WIDTH),
+      .C_S00_AXIS_TDATA_WIDTH(SIGNED_C_M00_AXIS_TDATA_WIDTH),
       .KERNEL_WIDTH          (model_params::CONV1D_1_KERNEL_WIDTH),
       .CHANNEL_IN_COUNT      (model_params::CONV1D_1_CHANNEL_IN_COUNT),
       .CHANNEL_OUT_COUNT     (model_params::CONV1D_1_CHANNEL_OUT_COUNT),
       .STRIDE                (model_params::CONV1D_1_STRIDE),
-      .INPUT_BIT_WIDTH       (INPUT_BIT_WIDTH),
+      .INPUT_BIT_WIDTH       (SIGNED_OUTPUT_BIT_WIDTH),
       .WEIGHT_BIT_WIDTH      (model_params::CONV1D_1_WEIGHT_BIT_WIDTH)
   ) axis_conv1d (
       .aclk           (aclk),
       .aresetn        (aresetn),
       .weights        (model_params::CONV1D_1_WEIGHT),
       .biases         (model_params::CONV1D_1_BIAS),
-      .s00_axis_tlast (s00_axis_tlast),
-      .s00_axis_tvalid(s00_axis_tvalid),
-      .s00_axis_tdata (s00_axis_tdata),
-      .s00_axis_tstrb (s00_axis_tstrb),
-      .s00_axis_tready(s00_axis_tready),
+      .s00_axis_tlast (signed_axis_tlast),
+      .s00_axis_tvalid(signed_axis_tvalid),
+      .s00_axis_tdata (signed_axis_tdata),
+      .s00_axis_tstrb (signed_axis_tstrb),
+      .s00_axis_tready(signed_axis_tready),
       .m00_axis_tready(conv1d_m00_axis_tready),
       .m00_axis_tvalid(conv1d_m00_axis_tvalid),
       .m00_axis_tlast (conv1d_m00_axis_tlast),
