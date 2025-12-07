@@ -1,9 +1,8 @@
 // compares two inputs half of axistream and outputs necessary outputs for fifo control on tlast
-module axis_comparator #
-(
+module axis_comparator #(
     parameter DATA_WIDTH = 16,
     localparam C_S00_AXIS_TDATA_WIDTH = DATA_WIDTH * 2
-)(
+) (
     input wire aclk,
     input wire aresetn,
 
@@ -19,22 +18,22 @@ module axis_comparator #
     output logic top_half_greater
 );
 
-    // internal signals
-    logic signed [DATA_WIDTH-1:0] top_half;
-    logic signed [DATA_WIDTH-1:0] bottom_half;
+  // internal signals
+  logic signed [DATA_WIDTH-1:0] top_half;
+  logic signed [DATA_WIDTH-1:0] bottom_half;
 
-    // split inputs
-    always_comb begin
-        top_half = $signed(s00_axis_tdata[C_S00_AXIS_TDATA_WIDTH-1 -: DATA_WIDTH]);
-        bottom_half = $signed(s00_axis_tdata[DATA_WIDTH-1 -: DATA_WIDTH]);
-    end
+  // split inputs
+  always_comb begin
+    top_half = $signed(s00_axis_tdata[C_S00_AXIS_TDATA_WIDTH-1-:DATA_WIDTH]);
+    bottom_half = $signed(s00_axis_tdata[DATA_WIDTH-1-:DATA_WIDTH]);
+  end
 
-    // compare
-    always_ff @(posedge aclk) begin
-        top_half_greater <= (top_half >= bottom_half);
-        output_valid <= s00_axis_tvalid && s00_axis_tlast;
-    end
+  // compare
+  always_ff @(posedge aclk) begin
+    top_half_greater <= (top_half >= bottom_half);
+    output_valid <= s00_axis_tvalid && s00_axis_tlast;
+  end
 
-    // ready signal always high
-    assign s00_axis_tready = 1'b1;
+  // ready signal always high
+  assign s00_axis_tready = 1'b1;
 endmodule
