@@ -1,0 +1,3 @@
+[submodule "model/datasets/USTC-TFC2016"]
+	path = model/datasets/USTC-TFC2016
+	url = https://github.com/davidyslu/USTC-TFC2016.git

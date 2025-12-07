@@ -6,5 +6,9 @@ dependencies = [
     "cocotb~=2.0",
     "cocotb-bus>=0.2.1",
     "numpy>=2.3.5",
-    "torch>=2.9.1",
+    "pydantic>=2.12.5",
+    "torch==2.9.0",
+    "torchao>=0.14.1",
+    "tqdm>=4.67.1",
+    "typer>=0.20.0",
 ]

@@ -19,6 +19,7 @@ which avoids the need for the complex buffering.
 module axis_conv1d #(
     parameter integer C_S00_AXIS_TDATA_WIDTH = 32,
     parameter integer KERNEL_WIDTH = 25,  // FIXME: this must be larger than INPUT_WIDTH
+    parameter integer CHANNEL_IN_COUNT = 1,
     parameter integer CHANNEL_OUT_COUNT = 1,
     parameter integer STRIDE = 1,
     parameter integer INPUT_BIT_WIDTH = 8,
@@ -36,7 +37,7 @@ module axis_conv1d #(
 
     input wire aclk,
     input wire aresetn,
-    input wire signed [WEIGHT_BIT_WIDTH-1:0] weights[0:CHANNEL_OUT_COUNT-1][0:(KERNEL_WIDTH-1)],
+    input wire signed [WEIGHT_BIT_WIDTH-1:0] weights[0:CHANNEL_OUT_COUNT-1][0:CHANNEL_IN_COUNT-1][0:(KERNEL_WIDTH-1)],
     input wire signed [WEIGHT_BIT_WIDTH-1:0] biases[0:CHANNEL_OUT_COUNT-1],
 
     // Ports of Axi Slave Bus Interface S00_AXIS
@@ -108,6 +109,7 @@ module axis_conv1d #(
           .INPUT_BIT_WIDTH(INPUT_BIT_WIDTH),
           .WEIGHT_BIT_WIDTH(WEIGHT_BIT_WIDTH),
           .KERNEL_WIDTH(KERNEL_WIDTH),
+          .CHANNEL_IN_COUNT(CHANNEL_IN_COUNT),
           .CHANNEL_OUT_COUNT(CHANNEL_OUT_COUNT),
           .STAGE_1_MULT(connector_pkg::COMBINATIONAL),
           .STAGE_2_ADD(connector_pkg::COMBINATIONAL)
@@ -126,7 +128,7 @@ module axis_conv1d #(
 
   localparam integer RETAINED_PREVIOUS_INPUTS = (PREVIOUS_INPUTS) - INPUT_WIDTH;
   always_ff @(posedge aclk) begin
-    if (!aresetn) begin
+    if (!aresetn || (s00_axis_tlast && s00_axis_tvalid && s00_axis_tready)) begin
       previous_inputs_fill_cycles <= '0;
     end else begin
       if (s00_axis_tvalid && m00_axis_tready && !previous_inputs_filled) begin

@@ -17,6 +17,7 @@ from sim.lib.torch import (
 KERNEL_WIDTH = 5
 C_S00_AXIS_TDATA_WIDTH = 32
 INPUT_BIT_WIDTH = 8
+CHANNEL_IN_COUNT = 1
 CHANNEL_OUT_COUNT = 2
 WRITE_ITER = 11
 
@@ -119,18 +120,22 @@ async def test_a(dut):
     # Integer-like Conv1d: use float weights with integer values and integer inputs
     with torch.no_grad():
         layer = nn.Conv1d(
-            in_channels=1,
+            in_channels=CHANNEL_IN_COUNT,
             out_channels=CHANNEL_OUT_COUNT,
             kernel_size=KERNEL_WIDTH,
             stride=1,
             padding=0,
             bias=False,
         )
-        int_kernel = torch.tensor([[1, 0, 4, 0, 0], [0, 1, 0, -1, 0]], dtype=torch.int8)
-        int_biases = torch.tensor([1, -1], dtype=torch.int8)
-        assert int_kernel.shape == (layer.out_channels, KERNEL_WIDTH), (
-            f"Kernel shape mismatch {int_kernel.shape} | {layer.weight.shape}"
+        int_kernel = torch.tensor(
+            [[[1, 0, 4, 0, 0]], [[0, 1, 0, -1, 0]]], dtype=torch.int8
         )
+        int_biases = torch.tensor([1, -1], dtype=torch.int8)
+        assert int_kernel.shape == (
+            layer.out_channels,
+            layer.in_channels,
+            KERNEL_WIDTH,
+        ), f"Kernel shape mismatch {int_kernel.shape} | {layer.weight.shape}"
         assert int_biases.shape == (layer.out_channels,), (
             f"Biases shape mismatch {int_biases.shape} | {(layer.out_channels,)}"
         )
@@ -205,6 +210,7 @@ if __name__ == "__main__":
             "KERNEL_WIDTH": KERNEL_WIDTH,
             "C_S00_AXIS_TDATA_WIDTH": C_S00_AXIS_TDATA_WIDTH,
             "INPUT_BIT_WIDTH": INPUT_BIT_WIDTH,
+            "CHANNEL_IN_COUNT": CHANNEL_IN_COUNT,
             "CHANNEL_OUT_COUNT": CHANNEL_OUT_COUNT,
         },
     )
