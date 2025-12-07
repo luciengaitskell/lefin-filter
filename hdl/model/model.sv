@@ -9,6 +9,10 @@ module model #(
     localparam OUTPUT_BIT_WIDTH = 32,  // FIXME: be smarter about this??
     parameter int C_M00_AXIS_TDATA_WIDTH = OUTPUT_BIT_WIDTH * model_params::FC_OUT_DIM
 ) (
+
+    input wire aclk,
+    input wire aresetn,
+
     // Ports of Axi Slave Bus Interface S00_AXIS
     input wire s00_axis_tlast,
     s00_axis_tvalid,
