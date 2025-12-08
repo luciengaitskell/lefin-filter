@@ -297,9 +297,6 @@ def run(
     dataset_name: str = typer.Option(
         DEFAULT_CONFIG.name, help="Dataset base name (folder inside output_dir)"
     ),
-    dataset_layer: Literal["l2", "l3", "l7"] = typer.Option(
-        DEFAULT_CONFIG.layer, help="Payload layer L to use from the dataset"
-    ),
     include_layer_suffix: bool = typer.Option(
         True, help="Append _<layer> to dataset folder when resolving paths"
     ),
@@ -331,14 +328,14 @@ def run(
         help="Maximum payload length in bytes to send; larger samples are skipped",
     ),
     payload_layer: Literal["l2", "l3", "l7"] = typer.Option(
-        "l3",
-        help="Interpret dataset bytes: l2=send raw frame, l3=add Ether only, l7=wrap Ether/IP/UDP with tag",
+        DEFAULT_CONFIG.layer,
+        help="Layer to interpret dataset bytes: l2=send raw frame, l3=add Ether only, l7=wrap Ether/IP/UDP with tag",
     ),
 ):
     dataset_cfg = DEFAULT_CONFIG.model_copy(
         update={
             "name": dataset_name,
-            "layer": dataset_layer,
+            "layer": payload_layer,
             "include_layer_suffix": include_layer_suffix,
             "output_dir": dataset_output_dir or DEFAULT_CONFIG.output_dir,
         }
