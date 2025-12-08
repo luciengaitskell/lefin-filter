@@ -110,11 +110,13 @@ async def test_a(dut):
         if not result_okay:
             tb.scoreboard.errors += 1
             dut._log.error(
-                f"Mismatch! Got {raw_output}, expected {expected_result} for input: \n{input_vals}"
+                f"Mismatch! Got {raw_output}, expected {expected_result} for input: \n"
+                f"{input_vals}, len {len(input_vals)}"
             )
         else:
             dut._log.info(
-                f"Match! Got {raw_output}, expected {expected_result} for input {input_vals}"
+                f"Match! Got {raw_output}, expected {expected_result} for input\n"
+                f"{input_vals}, len {len(input_vals)}"
             )
 
     await ClockCycles(dut.aclk, 3500)
