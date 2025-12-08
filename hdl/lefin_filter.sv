@@ -35,13 +35,17 @@ module lefin_filter #(
       .aclk              (aclk),
       .aresetn           (aresetn),
       .s00_axis_tdata    (s00_axis_tdata),
+      /* verilator lint_off PINCONNECTEMPTY */
       .s00_axis_tstrb    (),
+      /* verilator lint_on PINCONNECTEMPTY */
       .s00_axis_tkeep    (s00_axis_tkeep),
       .s00_axis_tvalid   (s00_axis_tvalid),
       .s00_axis_tlast    (s00_axis_tlast),
       .s00_axis_tready   (axis_fifo_s00_axis_tready),
       .m00_axis_tdata    (m00_axis_tdata),
+      /* verilator lint_off PINCONNECTEMPTY */
       .m00_axis_tstrb    (),
+      /* verilator lint_on PINCONNECTEMPTY */
       .m00_axis_tkeep    (m00_axis_tkeep),
       .m00_axis_tvalid   (m00_axis_tvalid),
       .m00_axis_tlast    (m00_axis_tlast),
