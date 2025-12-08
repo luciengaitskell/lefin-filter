@@ -134,7 +134,7 @@ module axis_conv1d #(
       if (s00_axis_tvalid && m00_axis_tready && !previous_inputs_filled) begin
         previous_inputs_fill_cycles <= previous_inputs_fill_cycles + 1;
       end
-      if ((m00_axis_tvalid && m00_axis_tready) || !previous_inputs_filled) begin
+      if (m00_axis_tready || !previous_inputs_filled) begin
         for (integer i = 0; i < RETAINED_PREVIOUS_INPUTS; i++) begin
           previous_inputs[i] <= previous_inputs[i+INPUT_WIDTH];
         end
