@@ -96,7 +96,7 @@
             "value": "BASE-R"
           },
           "INCLUDE_USER_FIFO": {
-            "value": "0"
+            "value": "1"
           },
           "LANE2_GT_LOC": {
             "value": "X0Y7"
