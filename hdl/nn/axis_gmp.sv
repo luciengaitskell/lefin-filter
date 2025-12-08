@@ -53,7 +53,7 @@ module axis_gmp #(
     if (!aresetn) begin
       was_last <= 1'b1;
     end else begin
-      if (s00_axis_tlast) begin
+      if (s00_axis_transacted) begin
         was_last <= s00_axis_tlast;
       end
     end
@@ -73,9 +73,6 @@ module axis_gmp #(
 
   always_ff @(posedge aclk) begin
     if (s00_axis_transacted) begin
-      if (was_last) begin
-        was_last <= 1'b0;
-      end
       for (integer channel = 0; channel < CHANNEL_COUNT; channel++) begin
         logic signed [BIT_WIDTH-1:0] channel_max;
         if (was_last) begin
