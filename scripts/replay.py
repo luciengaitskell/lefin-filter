@@ -71,6 +71,7 @@ class ReplayConfig(BaseModel):
     denylist_file: Path | None = None
     specific_ids_file: Path | None = None
     benign_label_names: list[str] | None = None
+    allowlist_label_names: list[str] | None = None
 
 
 # ----------------------------------------------------------------------------
@@ -184,6 +185,21 @@ def run_replay(cfg: ReplayConfig):
         text = cfg.denylist_file.read_text().strip().splitlines()
         denied = {int(line) for line in text if line.strip()}
         ids = np.array(sorted([i for i in ids if i not in denied]), dtype=np.int64)
+
+    # Optional label-name allowlist: only keep indices whose label name is in
+    # the configured set. This uses label_names from metadata and y_test.
+    if cfg.allowlist_label_names:
+        label_allow = set(cfg.allowlist_label_names)
+        filtered = []
+        for i in ids:
+            idx = int(i)
+            if idx >= len(y_test):
+                continue
+            lbl_idx = int(y_test[idx])
+            if 0 <= lbl_idx < len(label_names):
+                if label_names[lbl_idx] in label_allow:
+                    filtered.append(idx)
+        ids = np.array(sorted(set(filtered)), dtype=np.int64)
 
     if ids.size == 0:
         raise RuntimeError("No sample indices to replay after applying filters")
@@ -444,6 +460,10 @@ def run(
         None,
         help="Comma-separated list of label names that should be treated as benign for eval (others are treated as malicious)",
     ),
+    allowlist_labels: str | None = typer.Option(
+        None,
+        help="Comma-separated list of label names; only samples with these labels are replayed",
+    ),
 ):
     dataset_cfg = DEFAULT_CONFIG.model_copy(
         update={
@@ -474,6 +494,9 @@ def run(
         specific_ids_file=specific_ids_file,
         benign_label_names=[s.strip() for s in benign_labels.split(",")]
         if benign_labels
+        else None,
+        allowlist_label_names=[s.strip() for s in allowlist_labels.split(",")]
+        if allowlist_labels
         else None,
     )
     run_replay(cfg)
