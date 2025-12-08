@@ -259,6 +259,8 @@ def run_replay(cfg: ReplayConfig):
             pbar.update(len(pkts))
     pbar.close()
 
+    print("Waiting for capture to complete...")
+    time.sleep(1)
     sniffer.stop()
     sniffer.join(timeout=cfg.timeout)
     captured = sniffer.results or []
