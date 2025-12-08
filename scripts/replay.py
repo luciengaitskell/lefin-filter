@@ -67,6 +67,9 @@ class ReplayConfig(BaseModel):
     payload_layer: Literal["l2", "l3", "l7"] = (
         "l3"  # how dataset bytes should be injected on send
     )
+    allowlist_file: Path | None = None
+    denylist_file: Path | None = None
+    specific_ids_file: Path | None = None
 
 
 # ----------------------------------------------------------------------------
@@ -158,6 +161,28 @@ def run_replay(cfg: ReplayConfig):
     total = cfg.count if cfg.count else len(x_raw)
     total = min(total, len(x_raw))
     ids = np.arange(total, dtype=np.int64)
+
+    if cfg.specific_ids_file is not None:
+        text = cfg.specific_ids_file.read_text().strip().splitlines()
+        raw_ids = [int(line) for line in text if line.strip()]
+        ids = np.array(
+            sorted({i for i in raw_ids if 0 <= i < len(x_raw)}), dtype=np.int64
+        )
+
+    if cfg.allowlist_file is not None:
+        text = cfg.allowlist_file.read_text().strip().splitlines()
+        allowed = {int(line) for line in text if line.strip()}
+        ids = np.array(sorted([i for i in ids if i in allowed]), dtype=np.int64)
+
+    if cfg.denylist_file is not None:
+        text = cfg.denylist_file.read_text().strip().splitlines()
+        denied = {int(line) for line in text if line.strip()}
+        ids = np.array(sorted([i for i in ids if i not in denied]), dtype=np.int64)
+
+    if ids.size == 0:
+        raise RuntimeError("No sample indices to replay after applying filters")
+
+    total = len(ids)
 
     # Prep sniffer (filter only when using l7 wrapper)
     conf.sniff_promisc = cfg.promisc
@@ -331,6 +356,18 @@ def run(
         DEFAULT_CONFIG.layer,
         help="Layer to interpret dataset bytes: l2=send raw frame, l3=add Ether only, l7=wrap Ether/IP/UDP with tag",
     ),
+    allowlist_file: Path | None = typer.Option(
+        None,
+        help="Optional file with one index per line; only these indices are eligible (applied after specific-ids-file)",
+    ),
+    denylist_file: Path | None = typer.Option(
+        None,
+        help="Optional file with one index per line; these indices are excluded",
+    ),
+    specific_ids_file: Path | None = typer.Option(
+        None,
+        help="Optional file with one index per line; when set, only these indices are replayed (overrides count)",
+    ),
 ):
     dataset_cfg = DEFAULT_CONFIG.model_copy(
         update={
@@ -356,6 +393,9 @@ def run(
         promisc=promisc,
         max_len_bytes=max_len_bytes,
         payload_layer=payload_layer,
+        allowlist_file=allowlist_file,
+        denylist_file=denylist_file,
+        specific_ids_file=specific_ids_file,
     )
     run_replay(cfg)
 
