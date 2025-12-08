@@ -25,7 +25,7 @@ module lefin_filter #(
 
   logic axis_fifo_s00_axis_tready;
   logic model_classification_valid;
-  logic model_classification;
+  logic model_classification_malware;
   axis_fifo #(
       .DATA_WIDTH(C_S00_AXIS_TDATA_WIDTH),
       .DEPTH     (1500),
@@ -51,7 +51,7 @@ module lefin_filter #(
       .m00_axis_tlast    (m00_axis_tlast),
       .m00_axis_tready   (m00_axis_tready),
       .packet_input_valid(model_classification_valid),
-      .packet_input_good (model_classification)
+      .packet_input_good (model_classification_malware)
   );
 
   logic model_interface_s00_axis_tready;
@@ -125,6 +125,6 @@ module lefin_filter #(
       .s00_axis_tlast  (model_m00_axis_tlast),
       .s00_axis_tready (model_m00_axis_tready),
       .output_valid    (model_classification_valid),
-      .top_half_greater(model_classification)
+      .top_half_greater(model_classification_malware)
   );
 endmodule
