@@ -63,6 +63,7 @@ class ReplayConfig(BaseModel):
     snaplen: int = 2048
     promisc: bool = True
     out_dir: Path = Field(default_factory=lambda: Path(__file__).resolve().parent)
+    max_len_bytes: int | None = 1514
     payload_layer: Literal["l2", "l3", "l7"] = (
         "l3"  # how dataset bytes should be injected on send
     )
@@ -178,6 +179,7 @@ def run_replay(cfg: ReplayConfig):
 
     sent_times: Dict[int, float] = {}
     labels: Dict[int, int] = {}
+    skipped_ids: list[int] = []
 
     pbar = tqdm(total=total, desc="sending", unit="pkt", dynamic_ncols=True)
     batch = cfg.batch
@@ -191,6 +193,11 @@ def run_replay(cfg: ReplayConfig):
         for i in range(start, end):
             sid = int(ids[i])
             payload = bytes(x_raw[sid])
+
+            # Skip packets that exceed the configured maximum length.
+            if cfg.max_len_bytes is not None and len(payload) > cfg.max_len_bytes:
+                skipped_ids.append(sid)
+                continue
             label = int(y_test[sid]) if sid < len(y_test) else 0
             if cfg.payload_layer == "l2":
                 # Treat payload as pre-built L2 frame (already padded/trimmed)
@@ -218,8 +225,9 @@ def run_replay(cfg: ReplayConfig):
             pkts.append(pkt)
             sent_times[sample_id] = time.time()
             labels[sample_id] = label
-        sendp(pkts, iface=cfg.tx_iface, inter=inter, verbose=False)
-        pbar.update(len(pkts))
+        if pkts:
+            sendp(pkts, iface=cfg.tx_iface, inter=inter, verbose=False)
+            pbar.update(len(pkts))
     pbar.close()
 
     sniffer.stop()
@@ -268,6 +276,14 @@ def run_replay(cfg: ReplayConfig):
         miss_path.write_text("\n".join(str(m) for m in missed))
         tqdm.write(f"Missed sample ids written to {miss_path}")
 
+    # Dump skipped oversized payload ids for inspection
+    if skipped_ids:
+        skip_path = cfg.out_dir / "replay_skipped_oversize_ids.txt"
+        skip_path.write_text("\n".join(str(s) for s in skipped_ids))
+        tqdm.write(
+            f"Skipped {len(skipped_ids)} oversized samples; ids written to {skip_path}"
+        )
+
 
 # ----------------------------------------------------------------------------
 # CLI
@@ -310,6 +326,10 @@ def run(
     batch: int = typer.Option(512, help="Batch size for sendp"),
     timeout: float = typer.Option(30.0, help="Capture timeout seconds"),
     promisc: bool = typer.Option(True, help="Enable promiscuous mode on RX"),
+    max_len_bytes: int = typer.Option(
+        1514,
+        help="Maximum payload length in bytes to send; larger samples are skipped",
+    ),
     payload_layer: Literal["l2", "l3", "l7"] = typer.Option(
         "l3",
         help="Interpret dataset bytes: l2=send raw frame, l3=add Ether only, l7=wrap Ether/IP/UDP with tag",
@@ -337,6 +357,7 @@ def run(
         batch=batch,
         timeout=timeout,
         promisc=promisc,
+        max_len_bytes=max_len_bytes,
         payload_layer=payload_layer,
     )
     run_replay(cfg)
