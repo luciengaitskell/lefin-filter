@@ -51,7 +51,7 @@ module lefin_filter #(
       .m00_axis_tlast    (m00_axis_tlast),
       .m00_axis_tready   (m00_axis_tready),
       .packet_input_valid(model_classification_valid),
-      .packet_input_good (model_classification_malware)
+      .packet_input_good (!model_classification_malware)
   );
 
   logic model_interface_s00_axis_tready;
