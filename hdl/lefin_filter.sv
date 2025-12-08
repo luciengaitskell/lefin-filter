@@ -57,7 +57,7 @@ module lefin_filter #(
   logic model_interface_s00_axis_tready;
   logic model_interface_m00_axis_tvalid;
   logic model_interface_m00_axis_tlast;
-  logic [C_M00_AXIS_TDATA_WIDTH-1 : 0] model_interface_m00_axis_tdata;
+  logic [C_S00_AXIS_TDATA_WIDTH-1 : 0] model_interface_m00_axis_tdata;
   logic [WIDTH-1:0] model_interface_m00_axis_tstrb;
   logic model_interface_m00_axis_tready;
   model_interface #(
