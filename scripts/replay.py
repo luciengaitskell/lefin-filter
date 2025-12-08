@@ -204,7 +204,10 @@ def run_replay(cfg: ReplayConfig):
 
     sent_times: Dict[int, float] = {}
     labels: Dict[int, int] = {}
-    skipped_ids: list[int] = []
+    # Maps hash-based sample_id -> dataset index (sid) so we can
+    # later export both hash IDs and dataset indices for misses.
+    hash_to_idx: Dict[int, int] = {}
+    skipped_dataset_ids: list[int] = []
 
     pbar = tqdm(total=total, desc="sending", unit="pkt", dynamic_ncols=True)
     batch = cfg.batch
@@ -221,7 +224,7 @@ def run_replay(cfg: ReplayConfig):
 
             # Skip packets that exceed the configured maximum length.
             if cfg.max_len_bytes is not None and len(payload) > cfg.max_len_bytes:
-                skipped_ids.append(sid)
+                skipped_dataset_ids.append(sid)
                 continue
             label = int(y_test[sid]) if sid < len(y_test) else 0
             if cfg.payload_layer == "l2":
@@ -250,6 +253,7 @@ def run_replay(cfg: ReplayConfig):
             pkts.append(pkt)
             sent_times[sample_id] = time.time()
             labels[sample_id] = label
+            hash_to_idx[sample_id] = sid
         if pkts:
             sendp(pkts, iface=cfg.tx_iface, inter=inter, verbose=False)
             pbar.update(len(pkts))
@@ -267,8 +271,8 @@ def run_replay(cfg: ReplayConfig):
             continue
         seen[sid] = getattr(pkt, "time", time.time())
 
-    passed = []
-    missed = []
+    passed: list[int] = []
+    missed: list[int] = []
     latencies = []
     for sid, send_ts in sent_times.items():
         if sid in seen:
@@ -295,18 +299,30 @@ def run_replay(cfg: ReplayConfig):
         per_label[lbl] = per_label.get(lbl, 0) + 1
     tqdm.write(f"Received per label: {per_label}")
 
-    # Dump misses for inspection
+    # Dump misses for inspection: write both hash IDs and dataset indices.
     if missed:
-        miss_path = cfg.out_dir / "replay_missed_ids.txt"
-        miss_path.write_text("\n".join(str(m) for m in missed))
-        tqdm.write(f"Missed sample ids written to {miss_path}")
+        miss_hashes = sorted(set(missed))
+        miss_idxs = sorted({hash_to_idx[h] for h in missed if h in hash_to_idx})
 
-    # Dump skipped oversized payload ids for inspection
-    if skipped_ids:
-        skip_path = cfg.out_dir / "replay_skipped_oversize_ids.txt"
-        skip_path.write_text("\n".join(str(s) for s in skipped_ids))
+        miss_hash_path = cfg.out_dir / "replay_missed_hashes.txt"
+        miss_hash_path.write_text("\n".join(str(m) for m in miss_hashes))
+
+        miss_idx_path = cfg.out_dir / "replay_missed_dataset_ids.txt"
+        miss_idx_path.write_text("\n".join(str(i) for i in miss_idxs))
+
         tqdm.write(
-            f"Skipped {len(skipped_ids)} oversized samples; ids written to {skip_path}"
+            f"Missed {len(missed)} packets; unique hashes written to {miss_hash_path}, "
+            f"dataset indices written to {miss_idx_path}"
+        )
+
+    # Dump skipped oversized payload dataset indices for inspection
+    if skipped_dataset_ids:
+        skip_idxs = sorted(set(skipped_dataset_ids))
+        skip_path = cfg.out_dir / "replay_skipped_oversize_dataset_ids.txt"
+        skip_path.write_text("\n".join(str(s) for s in skip_idxs))
+        tqdm.write(
+            f"Skipped {len(skipped_dataset_ids)} oversized samples; "
+            f"dataset indices written to {skip_path}"
         )
 
 
