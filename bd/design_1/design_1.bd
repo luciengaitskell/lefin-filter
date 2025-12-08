@@ -1221,7 +1221,7 @@
       },
       "lefin_filter_0": {
         "vlnv": "user.org:user:lefin_filter:1.0",
-        "ip_revision": "11",
+        "ip_revision": "12",
         "xci_name": "design_1_lefin_filter_0_0",
         "xci_path": "ip/design_1_lefin_filter_0_0/design_1_lefin_filter_0_0.xci",
         "inst_hier_path": "lefin_filter_0",
