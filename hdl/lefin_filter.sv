@@ -54,77 +54,22 @@ module lefin_filter #(
       .packet_input_good (!model_classification_malware)
   );
 
-  logic model_interface_s00_axis_tready;
-  logic model_interface_m00_axis_tvalid;
-  logic model_interface_m00_axis_tlast;
-  logic [C_S00_AXIS_TDATA_WIDTH-1 : 0] model_interface_m00_axis_tdata;
-  logic [WIDTH-1:0] model_interface_m00_axis_tstrb;
-  logic model_interface_m00_axis_tready;
-  model_interface #(
-      .C_S00_AXIS_TDATA_WIDTH(C_S00_AXIS_TDATA_WIDTH),
-      .BIT_WIDTH             (BIT_WIDTH)
-  ) model_interface (
-      .aclk           (aclk),
-      .aresetn        (aresetn),
-      .s00_axis_tlast (s00_axis_tlast),
-      .s00_axis_tvalid(s00_axis_tvalid),
-      .s00_axis_tdata (s00_axis_tdata),
-      .s00_axis_tkeep (s00_axis_tkeep),
-      .s00_axis_tready(model_interface_s00_axis_tready),
-      .m00_axis_tready(model_interface_m00_axis_tready),
-      .m00_axis_tvalid(model_interface_m00_axis_tvalid),
-      .m00_axis_tlast (model_interface_m00_axis_tlast),
-      .m00_axis_tdata (model_interface_m00_axis_tdata),
-      .m00_axis_tstrb (model_interface_m00_axis_tstrb)
-  );
-  assign s00_axis_tready = axis_fifo_s00_axis_tready && model_interface_s00_axis_tready;
-
-  localparam int SIGNED_OUTPUT_BIT_WIDTH = BIT_WIDTH + 1;
-  localparam int CONV1D_1_INTERMEDIATE_BIT_WIDTH = conv1d_pkg::calculate_intermediate_bit_width(
-      SIGNED_OUTPUT_BIT_WIDTH, model_params::CONV1D_1_WEIGHT_BIT_WIDTH
-  );
-  localparam int CONV1D_1_OUTPUT_BIT_WIDTH = conv1d_pkg::calculate_output_bit_width(
-      CONV1D_1_INTERMEDIATE_BIT_WIDTH, model_params::CONV1D_1_KERNEL_WIDTH
-  );
-  localparam int GMP_BIT_WIDTH = CONV1D_1_OUTPUT_BIT_WIDTH;
-  localparam int MODEL_OUTPUT_BIT_WIDTH = (GMP_BIT_WIDTH + model_params::FC_WEIGHT_BIT_WIDTH) + $clog2(
-      model_params::FC_IN_DIM + 1
-  );
-  localparam int MODEL_C_M00_AXIS_TDATA_WIDTH = MODEL_OUTPUT_BIT_WIDTH * model_params::FC_OUT_DIM;
-  logic model_m00_axis_tready;
-  logic model_m00_axis_tvalid;
-  logic model_m00_axis_tlast;
-  logic [MODEL_C_M00_AXIS_TDATA_WIDTH-1 : 0] model_m00_axis_tdata;
-  logic [(MODEL_C_M00_AXIS_TDATA_WIDTH/MODEL_OUTPUT_BIT_WIDTH)-1:0] model_m00_axis_tstrb;
-  model #(
-      .C_S00_AXIS_TDATA_WIDTH(C_S00_AXIS_TDATA_WIDTH),
-      .INPUT_BIT_WIDTH       (BIT_WIDTH)
-  ) model (
-      .aclk           (aclk),
-      .aresetn        (aresetn),
-      .s00_axis_tlast (model_interface_m00_axis_tlast),
-      .s00_axis_tvalid(model_interface_m00_axis_tvalid),
-      .s00_axis_tdata (model_interface_m00_axis_tdata),
-      .s00_axis_tstrb (model_interface_m00_axis_tstrb),
-      .s00_axis_tready(model_interface_m00_axis_tready),
-      .m00_axis_tready(model_m00_axis_tready),
-      .m00_axis_tvalid(model_m00_axis_tvalid),
-      .m00_axis_tlast (model_m00_axis_tlast),
-      .m00_axis_tdata (model_m00_axis_tdata),
-      .m00_axis_tstrb (model_m00_axis_tstrb)
+  logic classifier_s00_axis_tready;
+  classifier #(
+    .C_S00_AXIS_TDATA_WIDTH(C_S00_AXIS_TDATA_WIDTH),
+    .BIT_WIDTH             (BIT_WIDTH)
+   ) classifier (
+    .aclk                        (aclk),
+    .aresetn                     (aresetn),
+    .s00_axis_tlast              (s00_axis_tlast),
+    .s00_axis_tvalid             (s00_axis_tvalid),
+    .s00_axis_tdata              (s00_axis_tdata),
+    .s00_axis_tkeep              (s00_axis_tkeep),
+    .s00_axis_tready             (classifier_s00_axis_tready),
+    .model_classification_valid  (model_classification_valid),
+    .model_classification_malware(model_classification_malware)
   );
 
-  axis_comparator #(
-      .DATA_WIDTH(MODEL_OUTPUT_BIT_WIDTH)
-  ) axis_comparator (
-      .aclk            (aclk),
-      .aresetn         (aresetn),
-      .s00_axis_tvalid (model_m00_axis_tvalid),
-      .s00_axis_tdata  (model_m00_axis_tdata),
-      .s00_axis_tstrb  (model_m00_axis_tstrb),
-      .s00_axis_tlast  (model_m00_axis_tlast),
-      .s00_axis_tready (model_m00_axis_tready),
-      .output_valid    (model_classification_valid),
-      .top_half_greater(model_classification_malware)
-  );
+  assign s00_axis_tready = axis_fifo_s00_axis_tready && classifier_s00_axis_tready;
+
 endmodule
