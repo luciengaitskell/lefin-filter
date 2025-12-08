@@ -42,7 +42,7 @@ module axis_gmp #(
 
 
   assign m00_axis_tstrb = '1;
-  assign m00_axis_tlast = s00_axis_tlast;
+  assign m00_axis_tlast = '1;
   wire m00_axis_transacted = m00_axis_tready && m00_axis_tvalid;
   assign s00_axis_tready = !m00_axis_tvalid || m00_axis_transacted;
   wire  s00_axis_transacted = s00_axis_tready && s00_axis_tvalid;
