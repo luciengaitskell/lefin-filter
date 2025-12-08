@@ -188,7 +188,12 @@ async def test_a(dut):
 
     # feed the driver on the S Side:
     # always be ready to receive data:
-    tb.outd.append({"type": "read", "duration": EXPECTED_READ_TRANSACTIONS})
+    initial_transactions = random.randint(1, (EXPECTED_READ_TRANSACTIONS * 2) // 3)
+    tb.outd.append({"type": "read", "duration": initial_transactions})
+    tb.outd.append({"type": "pause", "duration": random.randint(5, 15)})
+    tb.outd.append(
+        {"type": "read", "duration": EXPECTED_READ_TRANSACTIONS - initial_transactions}
+    )
 
     await ClockCycles(dut.aclk, 3500)
     assert tb.inm.transactions == tb.outm.transactions + int(
