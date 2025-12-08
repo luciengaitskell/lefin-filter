@@ -111,7 +111,7 @@ module axis_conv1d #(
           .KERNEL_WIDTH(KERNEL_WIDTH),
           .CHANNEL_IN_COUNT(CHANNEL_IN_COUNT),
           .CHANNEL_OUT_COUNT(CHANNEL_OUT_COUNT),
-          .STAGE_1_MULT(connector_pkg::COMBINATIONAL),
+          .STAGE_1_MULT(connector_pkg::SEQUENTIAL),
           .STAGE_2_ADD(connector_pkg::COMBINATIONAL)
       ) conv1d_parallel (
           .clk             (aclk),
@@ -155,7 +155,10 @@ module axis_conv1d #(
       end
     end
     m00_axis_tvalid = m00_axis_tstrb[0];
-    m00_axis_tlast  = s00_axis_tlast; // FIXME: this is only correct for KERNEL_WIDTH == INPUT_WIDTH + 1
+  end
+
+  always_ff @( posedge aclk ) begin
+    m00_axis_tlast  <= s00_axis_tlast;
   end
 
 
