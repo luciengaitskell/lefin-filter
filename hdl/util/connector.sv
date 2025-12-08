@@ -13,6 +13,7 @@ module connector #(
     parameter integer WIDTH = 8
 ) (
     input wire clk,
+    input wire enable,
     input wire [WIDTH-1:0] in,
     input wire in_valid,
     output logic [WIDTH-1:0] out,
@@ -29,8 +30,10 @@ module connector #(
       end
       connector_pkg::SEQUENTIAL: begin : seq_connect
         always_ff @(posedge clk) begin
-          out <= in;
-          out_valid <= in_valid;
+          if (enable) begin
+            out <= in;
+            out_valid <= in_valid;
+          end
         end
       end
     endcase

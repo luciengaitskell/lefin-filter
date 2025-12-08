@@ -115,6 +115,7 @@ module axis_conv1d #(
           .STAGE_2_ADD(connector_pkg::COMBINATIONAL)
       ) conv1d_parallel (
           .clk             (aclk),
+          .enable          (m00_axis_tready),
           .inputs          (inputs[i+:KERNEL_WIDTH]),
           .inputs_valid    (s00_axis_tvalid && previous_inputs_filled && conv_input_strb[i]),
           // was considerign `&& m00_axis_tready` but I think it's wrong
