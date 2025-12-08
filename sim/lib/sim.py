@@ -54,6 +54,7 @@ def build_and_run_sim(
         includes=includes_paths,
         hdl_toplevel=hdl_toplevel,
         always=True,
+        build_dir=Path("sim_build") / hdl_toplevel,
         build_args=build_test_args,
         parameters=parameters,
         timescale=("1ns", "1ps"),
