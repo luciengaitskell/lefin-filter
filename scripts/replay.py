@@ -35,7 +35,7 @@ from scapy.layers.inet import IP, UDP
 from scapy.layers.l2 import Ether
 from tqdm.auto import tqdm
 
-from model.dataset import DEFAULT_CONFIG, DatasetConfig, load_split_arrays
+from model.dataset import DEFAULT_CONFIG, DatasetConfig, load_split_raw
 
 app = typer.Typer(
     help="Replay validation samples over two NIC ports and measure pass/fail & latency"
@@ -147,13 +147,15 @@ def _extract_tag(pkt) -> Tuple[int | None, int | None]:
 
 
 def run_replay(cfg: ReplayConfig):
-    # Load validation split
-    x_test, y_test = load_split_arrays(cfg.dataset, "test")
-    if x_test.size == 0:
-        raise RuntimeError("Test split is empty; run preprocessing first")
+    # Load validation split using raw (variable-length) payloads so that
+    # replay uses the exact original bytes rather than the fixed-width,
+    # zero-padded tensors used for training.
+    x_raw, y_test = load_split_raw(cfg.dataset, "test")
+    if x_raw.size == 0:
+        raise RuntimeError("Test raw split is empty; run preprocessing first")
 
-    total = cfg.count if cfg.count else len(x_test)
-    total = min(total, len(x_test))
+    total = cfg.count if cfg.count else len(x_raw)
+    total = min(total, len(x_raw))
     ids = np.arange(total, dtype=np.int64)
 
     # Prep sniffer (filter only when using l7 wrapper)
@@ -188,7 +190,7 @@ def run_replay(cfg: ReplayConfig):
         pkts = []
         for i in range(start, end):
             sid = int(ids[i])
-            payload = bytes(x_test[sid].astype(np.uint8))
+            payload = bytes(x_raw[sid])
             label = int(y_test[sid]) if sid < len(y_test) else 0
             if cfg.payload_layer == "l2":
                 # Treat payload as pre-built L2 frame (already padded/trimmed)
