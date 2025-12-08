@@ -46,7 +46,7 @@ module lefin_filter #(
       .m00_axis_tvalid   (m00_axis_tvalid),
       .m00_axis_tlast    (m00_axis_tlast),
       .m00_axis_tready   (m00_axis_tready),
-      .packet_input_valid(1'b1),
+      .packet_input_valid(model_classification_valid),
       .packet_input_good (1'b1)
   );
 
