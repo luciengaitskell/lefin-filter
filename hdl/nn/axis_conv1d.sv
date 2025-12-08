@@ -155,7 +155,12 @@ module axis_conv1d #(
       end
     end
     m00_axis_tvalid = m00_axis_tstrb[0];
-    m00_axis_tlast  = s00_axis_tlast; // FIXME: this is only correct for KERNEL_WIDTH == INPUT_WIDTH + 1
+  end
+
+  always_ff @(posedge aclk) begin
+    if (m00_axis_tready) begin
+      m00_axis_tlast <= s00_axis_tlast;
+    end
   end
 
 
