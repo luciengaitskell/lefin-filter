@@ -111,7 +111,7 @@ module axis_conv1d #(
           .KERNEL_WIDTH(KERNEL_WIDTH),
           .CHANNEL_IN_COUNT(CHANNEL_IN_COUNT),
           .CHANNEL_OUT_COUNT(CHANNEL_OUT_COUNT),
-          .STAGE_1_MULT(connector_pkg::COMBINATIONAL),
+          .STAGE_1_MULT(connector_pkg::SEQUENTIAL),
           .STAGE_2_ADD(connector_pkg::COMBINATIONAL)
       ) conv1d_parallel (
           .clk             (aclk),
