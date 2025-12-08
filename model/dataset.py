@@ -12,7 +12,7 @@ from __future__ import annotations
 import hashlib
 import json
 from pathlib import Path
-from typing import Dict, List, Literal, Sequence, Tuple
+from typing import Any, Dict, List, Literal, Sequence, Tuple
 
 import numpy as np
 import typer
@@ -350,6 +350,21 @@ def load_split_raw(
         )
     data = np.load(path, allow_pickle=True)
     return data["payloads"], data["y"]
+
+
+def load_metadata(config: DatasetConfig = DEFAULT_CONFIG) -> Dict[str, Any]:
+    """Load dataset metadata produced by :func:`preprocess`.
+
+    This provides access to fields like ``label_names`` without callers
+    needing to know about the on-disk JSON layout.
+    """
+
+    if not config.metadata_path.exists():
+        raise FileNotFoundError(
+            f"Metadata not found: {config.metadata_path}. Run preprocess first."
+        )
+    with config.metadata_path.open("r") as f:
+        return json.load(f)
 
 
 def load_splits(

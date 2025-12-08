@@ -35,7 +35,7 @@ from scapy.layers.inet import IP, UDP
 from scapy.layers.l2 import Ether
 from tqdm.auto import tqdm
 
-from model.dataset import DEFAULT_CONFIG, DatasetConfig, load_split_raw
+from model.dataset import DEFAULT_CONFIG, DatasetConfig, load_metadata, load_split_raw
 
 app = typer.Typer(
     help="Replay validation samples over two NIC ports and measure pass/fail & latency"
@@ -70,6 +70,7 @@ class ReplayConfig(BaseModel):
     allowlist_file: Path | None = None
     denylist_file: Path | None = None
     specific_ids_file: Path | None = None
+    benign_label_names: list[str] | None = None
 
 
 # ----------------------------------------------------------------------------
@@ -151,6 +152,11 @@ def _extract_tag(pkt) -> Tuple[int | None, int | None]:
 
 
 def run_replay(cfg: ReplayConfig):
+    # Load dataset metadata to obtain label names for eval without callers
+    # needing to know anything about the on-disk JSON structure.
+    metadata = load_metadata(cfg.dataset)
+    label_names = metadata.get("label_names", [])
+
     # Load validation split using raw (variable-length) payloads so that
     # replay uses the exact original bytes rather than the fixed-width,
     # zero-padded tensors used for training.
@@ -301,6 +307,54 @@ def run_replay(cfg: ReplayConfig):
         per_label[lbl] = per_label.get(lbl, 0) + 1
     tqdm.write(f"Received per label: {per_label}")
 
+    # Eval: benign vs malicious accuracy using label names from the dataset.
+    if cfg.benign_label_names:
+        benign_set = set(cfg.benign_label_names)
+
+        benign_total = 0
+        benign_pass = 0
+        malicious_total = 0
+        malicious_drop = 0
+
+        # We iterate over all sent sample_ids, map back to dataset index and
+        # then to label index -> label name.
+        for sid_hash, send_ts in sent_times.items():
+            ds_idx = hash_to_idx.get(sid_hash)
+            if ds_idx is None or ds_idx >= len(y_test):
+                continue
+            lbl_idx = int(y_test[ds_idx])
+            if 0 <= lbl_idx < len(label_names):
+                lbl_name = label_names[lbl_idx]
+            else:
+                lbl_name = str(lbl_idx)
+
+            is_benign = lbl_name in benign_set
+            seen_pass = sid_hash in seen
+
+            if is_benign:
+                benign_total += 1
+                if seen_pass:
+                    benign_pass += 1
+            else:
+                malicious_total += 1
+                if not seen_pass:
+                    malicious_drop += 1
+
+        if benign_total + malicious_total > 0:
+            benign_pass_rate = benign_pass / max(1, benign_total)
+            malicious_drop_rate = malicious_drop / max(1, malicious_total)
+            overall_correct = benign_pass + malicious_drop
+            overall_total = benign_total + malicious_total
+            overall_acc = overall_correct / overall_total if overall_total else 0.0
+
+            tqdm.write(
+                "Eval (using benign_label_names): "
+                f"benign_pass_rate={benign_pass_rate:.4f} "
+                f"malicious_drop_rate={malicious_drop_rate:.4f} "
+                f"overall_accuracy={overall_acc:.4f} "
+                f"(benign_total={benign_total}, malicious_total={malicious_total})"
+            )
+
     # Dump misses for inspection: write both hash IDs and dataset indices.
     if missed:
         miss_hashes = sorted(set(missed))
@@ -386,6 +440,10 @@ def run(
         None,
         help="Optional file with one index per line; when set, only these indices are replayed (overrides count)",
     ),
+    benign_labels: str | None = typer.Option(
+        None,
+        help="Comma-separated list of label names that should be treated as benign for eval (others are treated as malicious)",
+    ),
 ):
     dataset_cfg = DEFAULT_CONFIG.model_copy(
         update={
@@ -414,6 +472,9 @@ def run(
         allowlist_file=allowlist_file,
         denylist_file=denylist_file,
         specific_ids_file=specific_ids_file,
+        benign_label_names=[s.strip() for s in benign_labels.split(",")]
+        if benign_labels
+        else None,
     )
     run_replay(cfg)
 
