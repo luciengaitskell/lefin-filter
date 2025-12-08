@@ -1221,7 +1221,7 @@
       },
       "lefin_filter_0": {
         "vlnv": "user.org:user:lefin_filter:1.0",
-        "ip_revision": "6",
+        "ip_revision": "9",
         "xci_name": "design_1_lefin_filter_0_0",
         "xci_path": "ip/design_1_lefin_filter_0_0/design_1_lefin_filter_0_0.xci",
         "inst_hier_path": "lefin_filter_0",
@@ -1352,25 +1352,20 @@
           "xxv_ethernet_0/sys_reset"
         ]
       },
-      "xxv_ethernet_0_rx_clk_out_0": {
+      "xxv_ethernet_0_tx_clk_out_0": {
         "ports": [
-          "xxv_ethernet_0/rx_clk_out_0",
+          "xxv_ethernet_0/tx_clk_out_0",
+          "proc_sys_reset_filter_m00/slowest_sync_clk",
+          "lefin_filter_0/m00_axis_aclk",
           "xxv_ethernet_0/rx_core_clk_0",
           "proc_sys_reset_filter_s00/slowest_sync_clk",
           "lefin_filter_0/s00_axis_aclk"
         ]
       },
-      "xxv_ethernet_0_rx_clk_out_1": {
+      "xxv_ethernet_0_tx_clk_out_1": {
         "ports": [
-          "xxv_ethernet_0/rx_clk_out_1",
+          "xxv_ethernet_0/tx_clk_out_1",
           "xxv_ethernet_0/rx_core_clk_1"
-        ]
-      },
-      "xxv_ethernet_0_tx_clk_out_0": {
-        "ports": [
-          "xxv_ethernet_0/tx_clk_out_0",
-          "proc_sys_reset_filter_m00/slowest_sync_clk",
-          "lefin_filter_0/m00_axis_aclk"
         ]
       },
       "zynq_ultra_ps_e_0_pl_clk0": {
