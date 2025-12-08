@@ -9,6 +9,7 @@ from sim.bus.axis import AXIS_Testbench
 from sim.lib.sim import build_and_run_sim, reset
 from sim.lib.torch import (
     int8_torch_to_packed,
+    long_torch_to_packed,
     packed_to_int8_torch,
     packed_to_long_torch,
 )
@@ -78,16 +79,24 @@ class Conv1dTestbench(AXIS_Testbench):
         )
 
         input_and_metadata, expected_result = self.scoreboard_queue.popleft()
+        expected_result_raw = long_torch_to_packed(
+            expected_result.flatten(),
+            int(self.dut.OUTPUT_BIT_WIDTH.value),
+        )
         input_vals = input_and_metadata["data"]
         result_okay = torch.isclose(result, expected_result, rtol=0.05, atol=0.1)
         if not result_okay.all():
             self.scoreboard.errors += 1
             self.dut._log.error(
-                f"Mismatch! Got {result}, expected {expected_result} for input {input_vals}"
+                f"Mismatch! Got\n{result}, expected\n{expected_result} for input {input_vals}\n"
+                f"raw output data 0x{result_and_metadata['data']:x}\n"
+                f"expected raw    0x{expected_result_raw:x}"
             )
         else:
             self.dut._log.info(
-                f"Match! Got {result},expected {expected_result} for input {input_vals}"
+                f"Match! Got\n{result}, expected\n{expected_result} for input {input_vals}\n"
+                f"raw output data 0x{result_and_metadata['data']:x}\n"
+                f"expected raw    0x{expected_result_raw:x}"
             )
 
         def cascade_and(x: int, width: int) -> int:
