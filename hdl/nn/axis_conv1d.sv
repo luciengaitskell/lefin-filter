@@ -115,6 +115,7 @@ module axis_conv1d #(
           .STAGE_2_ADD(connector_pkg::COMBINATIONAL)
       ) conv1d_parallel (
           .clk             (aclk),
+          .enable          (m00_axis_tready),
           .inputs          (inputs[i+:KERNEL_WIDTH]),
           .inputs_valid    (s00_axis_tvalid && previous_inputs_filled && conv_input_strb[i]),
           // was considerign `&& m00_axis_tready` but I think it's wrong
@@ -134,7 +135,7 @@ module axis_conv1d #(
       if (s00_axis_tvalid && m00_axis_tready && !previous_inputs_filled) begin
         previous_inputs_fill_cycles <= previous_inputs_fill_cycles + 1;
       end
-      if ((m00_axis_tvalid && m00_axis_tready) || !previous_inputs_filled) begin
+      if (m00_axis_tready || !previous_inputs_filled) begin
         for (integer i = 0; i < RETAINED_PREVIOUS_INPUTS; i++) begin
           previous_inputs[i] <= previous_inputs[i+INPUT_WIDTH];
         end
@@ -157,8 +158,10 @@ module axis_conv1d #(
     m00_axis_tvalid = m00_axis_tstrb[0];
   end
 
-  always_ff @( posedge aclk ) begin
-    m00_axis_tlast  <= s00_axis_tlast;
+  always_ff @(posedge aclk) begin
+    if (m00_axis_tready) begin
+      m00_axis_tlast <= s00_axis_tlast;
+    end
   end
 
 

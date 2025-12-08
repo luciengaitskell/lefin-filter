@@ -27,6 +27,7 @@ module conv1d #(
     parameter connector_pkg::logic_style STAGE_2_ADD = connector_pkg::COMBINATIONAL
 ) (
     input wire clk,
+    input wire enable,
     input wire signed [INPUT_BIT_WIDTH-1:0] inputs[0:KERNEL_WIDTH-1],
     input wire inputs_valid,
     input wire signed [WEIGHT_BIT_WIDTH-1:0] weights[0:CHANNEL_OUT_COUNT-1][0:CHANNEL_IN_COUNT-1][0:KERNEL_WIDTH-1],
@@ -67,6 +68,7 @@ module conv1d #(
             .WIDTH       (INTERMEDIATE_BIT_WIDTH)
         ) stage_1_multi_connector (
             .clk(clk),
+            .enable(enable),
             .in(INTERMEDIATE_BIT_WIDTH'(inputs[i]) * INTERMEDIATE_BIT_WIDTH'(weights[channel_out][0][i])),
             .in_valid(inputs_valid),
             .out(intermediates[channel_out][i]),
@@ -79,6 +81,7 @@ module conv1d #(
           .WIDTH       (OUTPUT_BIT_WIDTH)
       ) connector (
           .clk(clk),
+          .enable(enable),
           .in(adder_steps[channel_out][KERNEL_WIDTH-1]),
           .in_valid(&stage_1_valid[channel_out]),
           .out(activation[channel_out]),
