@@ -181,7 +181,8 @@ async def test_a(dut):
                 },
             }
         )
-        tb.ind.append({"type": "pause", "duration": random.randint(1, 6)})
+        if random.random() < 0.3:
+            tb.ind.append({"type": "pause", "duration": random.randint(1, 6)})
     # tb.ind.append({"type": "write_burst", "contents": {"data": list(...)}})
     # tb.ind.append({"type": "pause", "duration": 2})  # end with pause
 
