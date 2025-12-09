@@ -59,6 +59,9 @@ class ModelInterfaceTestbench(AXIS_Testbench):
             }
         )
 
+        packed_chunks = packed_chunks.copy()
+        chunk_tkeeps = chunk_tkeeps.copy()
+
         if len(packed_chunks) < int(self.dut.MAXIMUM_CYCLES.value):
             short_by = int(self.dut.MAXIMUM_CYCLES.value) - len(packed_chunks)
             extend_cycles = min(short_by, int(self.dut.PURGE_CYCLES.value))
