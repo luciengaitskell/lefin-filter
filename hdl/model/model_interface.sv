@@ -46,9 +46,11 @@ module model_interface #(
   ))'(MAXIMUM_CYCLES));
   logic [$clog2(PURGE_CYCLES+1)-1:0] purge_cycle_count;
   wire purging = purge_cycle_count > 0;
-  wire last_purge = ((purge_cycle_count == ($clog2(PURGE_CYCLES + 1))'(PURGE_CYCLES))
-  || (purging && (output_transaction_count == ($clog2(MAXIMUM_CYCLES + 1))'(MAXIMUM_CYCLES)))
-  );
+  wire last_purge = ((purge_cycle_count == ($clog2(
+      PURGE_CYCLES + 1
+  ))'(PURGE_CYCLES)) || (purging && (output_transaction_count == ($clog2(
+      MAXIMUM_CYCLES + 1
+  ))'(MAXIMUM_CYCLES))));
   counter #(
       .MAXIMUM  (PURGE_CYCLES + 1),
       .ROLL_OVER(0)
