@@ -64,6 +64,7 @@ class ReplayConfig(BaseModel):
     promisc: bool = True
     out_dir: Path = Field(default_factory=lambda: Path(__file__).resolve().parent)
     max_len_bytes: int | None = 1514
+    min_len_bytes: int | None = None
     payload_layer: Literal["l2", "l3", "l7"] = (
         "l3"  # how dataset bytes should be injected on send
     )
@@ -263,6 +264,10 @@ def run_replay(cfg: ReplayConfig):
 
             # Skip packets that exceed the configured maximum length.
             if cfg.max_len_bytes is not None and len(payload) > cfg.max_len_bytes:
+                skipped_dataset_ids.append(sid)
+                continue
+
+            if cfg.min_len_bytes is not None and len(payload) < cfg.min_len_bytes:
                 skipped_dataset_ids.append(sid)
                 continue
             label = int(y_test[sid]) if sid < len(y_test) else 0
@@ -571,6 +576,10 @@ def run(
         1514,
         help="Maximum payload length in bytes to send; larger samples are skipped",
     ),
+    min_len_bytes: int | None = typer.Option(
+        6,
+        help="Minimum payload length in bytes required to send; shorter samples are skipped (useful for L2)",
+    ),
     payload_layer: Literal["l2", "l3", "l7"] = typer.Option(
         DEFAULT_CONFIG.layer,
         help="Layer to interpret dataset bytes: l2=send raw frame, l3=add Ether only, l7=wrap Ether/IP/UDP with tag",
@@ -623,6 +632,7 @@ def run(
         timeout=timeout,
         promisc=promisc,
         max_len_bytes=max_len_bytes,
+        min_len_bytes=min_len_bytes,
         payload_layer=payload_layer,
         allowlist_file=allowlist_file,
         denylist_file=denylist_file,
