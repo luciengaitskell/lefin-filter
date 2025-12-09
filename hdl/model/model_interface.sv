@@ -4,7 +4,8 @@ module model_interface #(
     parameter int BIT_WIDTH = 8,
     localparam int WIDTH = C_S00_AXIS_TDATA_WIDTH / BIT_WIDTH,
     localparam int C_M00_AXIS_TDATA_WIDTH = C_S00_AXIS_TDATA_WIDTH,
-    parameter int MAXIMUM_INPUT_BYTES = 768
+    parameter int MAXIMUM_INPUT_BYTES = 768,
+    parameter int PURGE_CYCLES = 3
 ) (
     input wire aclk,
     input wire aresetn,
@@ -39,25 +40,50 @@ module model_interface #(
 
   wire s00_axis_transacted = s00_axis_tvalid && s00_axis_tready;
 
-  logic [$clog2(MAXIMUM_CYCLES+1)-1:0] s00_axis_transaction_count;
-  wire waiting_for_s00_axis_finish = (s00_axis_transaction_count == ($clog2(
+  logic [$clog2(MAXIMUM_CYCLES+1)-1:0] output_transaction_count;
+  wire waiting_for_s00_axis_finish = (output_transaction_count == ($clog2(
       MAXIMUM_CYCLES + 1
   ))'(MAXIMUM_CYCLES));
+  logic [$clog2(PURGE_CYCLES+1)-1:0] purge_cycle_count;
+  wire purging = purge_cycle_count > 0;
+  wire last_purge = ((purge_cycle_count == ($clog2(PURGE_CYCLES + 1))'(PURGE_CYCLES))
+  || (purging && (output_transaction_count == ($clog2(MAXIMUM_CYCLES + 1))'(MAXIMUM_CYCLES)))
+  );
   counter #(
-      .MAXIMUM  (MAXIMUM_CYCLES+1),
+      .MAXIMUM  (PURGE_CYCLES + 1),
       .ROLL_OVER(0)
-  ) s00_axis_transaction_counter (
-      .clk    (aclk),
-      .rst    (!aresetn || (s00_axis_tlast && s00_axis_transacted)),
-      .trigger(s00_axis_transacted && !waiting_for_s00_axis_finish),
-      .count  (s00_axis_transaction_count)
+  ) purge_counter (
+      .clk(aclk),
+      .rst(!aresetn || (last_purge && m00_axis_tready) || waiting_for_s00_axis_finish),
+      .trigger((purging && m00_axis_tready && !last_purge) || (!purging && s00_axis_tlast && s00_axis_transacted && !waiting_for_s00_axis_finish)),
+      .count(purge_cycle_count)
+  );
+  counter #(
+      .MAXIMUM  (MAXIMUM_CYCLES + 1),
+      .ROLL_OVER(0)
+  ) output_transaction_counter (
+      .clk(aclk),
+      .rst    (!aresetn || (s00_axis_tlast && s00_axis_transacted && waiting_for_s00_axis_finish) || (last_purge && m00_axis_tready)),
+      .trigger(((s00_axis_transacted || purging) && !waiting_for_s00_axis_finish)),
+      .count(output_transaction_count)
   );
 
   assign s00_axis_tready = m00_axis_tready || waiting_for_s00_axis_finish;
-  assign m00_axis_tvalid = s00_axis_tvalid && !waiting_for_s00_axis_finish;
-  assign m00_axis_tdata  = s00_axis_tdata;
-  assign m00_axis_tstrb  = s00_axis_tkeep;
-  assign m00_axis_tlast = s00_axis_tlast || (s00_axis_transaction_count == ($clog2(
-      MAXIMUM_CYCLES + 1
-  ))'(MAXIMUM_CYCLES-1));  // one before going into waiting state
+  assign m00_axis_tvalid = (s00_axis_tvalid && !waiting_for_s00_axis_finish) || (purging);
+  assign m00_axis_tstrb  = '1;  // always valid bytes on output
+  always_comb begin
+    if (purging) begin
+      m00_axis_tdata = '0;
+    end else begin
+      for (int i = 0; i < WIDTH; i++) begin
+        if (s00_axis_tkeep[i]) begin
+          m00_axis_tdata[BIT_WIDTH*i+:BIT_WIDTH] = s00_axis_tdata[BIT_WIDTH*i+:BIT_WIDTH];
+        end else begin
+          m00_axis_tdata[BIT_WIDTH*i+:BIT_WIDTH] = '0;
+        end
+      end
+    end
+  end
+
+  assign m00_axis_tlast = (s00_axis_tlast && !waiting_for_s00_axis_finish) || last_purge;  // one before going into waiting state
 endmodule
