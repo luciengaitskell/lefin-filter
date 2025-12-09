@@ -128,6 +128,12 @@ module axis_fifo #(
               s00_axis_tready <= 0;
               m00_axis_tvalid <= 0;
             end
+            3'b011: begin  // tlast only
+              cur_state <= NFILL_NDRAIN;
+              read_ptr <= 0;  // reset read pointer
+              s00_axis_tready <= 0;
+              m00_axis_tvalid <= 0;
+            end
             3'b111: begin  // keep_packet and tlast
               cur_state <= DRAIN_ONLY;
               read_ptr <= 0;  // reset read pointer
