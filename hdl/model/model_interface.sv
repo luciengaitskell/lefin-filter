@@ -46,20 +46,17 @@ module model_interface #(
   ))'(MAXIMUM_CYCLES));
   logic [$clog2(PURGE_CYCLES+1)-1:0] purge_cycle_count;
   wire purging = purge_cycle_count > 0;
+  wire last_cycle = (output_transaction_count == ($clog2(MAXIMUM_CYCLES + 1))'(MAXIMUM_CYCLES - 1));
   wire last_purge = ((purge_cycle_count == ($clog2(
       PURGE_CYCLES + 1
-  ))'(PURGE_CYCLES)) || (purging && (output_transaction_count == ($clog2(
-      MAXIMUM_CYCLES + 1
-  ))'(MAXIMUM_CYCLES - 1))));
+  ))'(PURGE_CYCLES)) || (purging && last_cycle));
   counter #(
       .MAXIMUM  (PURGE_CYCLES + 1),
       .ROLL_OVER(0)
   ) purge_counter (
       .clk(aclk),
       .rst(!aresetn || (last_purge && m00_axis_tready) || waiting_for_s00_axis_finish),
-      .trigger((purging && m00_axis_tready && !last_purge) || (!purging && s00_axis_tlast && s00_axis_transacted && !(output_transaction_count == ($clog2(
-          MAXIMUM_CYCLES + 1
-      ))'(MAXIMUM_CYCLES - 1)))),
+      .trigger((purging && m00_axis_tready && !last_purge) || (!purging && s00_axis_tlast && s00_axis_transacted && !last_cycle)),
       .count(purge_cycle_count)
   );
   counter #(
@@ -91,7 +88,5 @@ module model_interface #(
     end
   end
 
-  assign m00_axis_tlast = ((output_transaction_count == ($clog2(
-          MAXIMUM_CYCLES + 1
-      ))'(MAXIMUM_CYCLES - 1))) || last_purge;  // one before going into waiting state
+  assign m00_axis_tlast = last_cycle || last_purge;  // one before going into waiting state
 endmodule
