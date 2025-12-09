@@ -57,7 +57,9 @@ module model_interface #(
   ) purge_counter (
       .clk(aclk),
       .rst(!aresetn || (last_purge && m00_axis_tready) || waiting_for_s00_axis_finish),
-      .trigger((purging && m00_axis_tready && !last_purge) || (!purging && s00_axis_tlast && s00_axis_transacted && !waiting_for_s00_axis_finish)),
+      .trigger((purging && m00_axis_tready && !last_purge) || (!purging && s00_axis_tlast && s00_axis_transacted && !(output_transaction_count == ($clog2(
+          MAXIMUM_CYCLES + 1
+      ))'(MAXIMUM_CYCLES - 1)))),
       .count(purge_cycle_count)
   );
   counter #(
@@ -65,12 +67,14 @@ module model_interface #(
       .ROLL_OVER(0)
   ) output_transaction_counter (
       .clk(aclk),
-      .rst    (!aresetn || (s00_axis_tlast && s00_axis_transacted && waiting_for_s00_axis_finish) || (last_purge && m00_axis_tready)),
+      .rst    (!aresetn || (s00_axis_tlast && s00_axis_transacted && (output_transaction_count >= ($clog2(
+          MAXIMUM_CYCLES + 1
+      ))'(MAXIMUM_CYCLES - 1))) || (last_purge && m00_axis_tready)),
       .trigger(((s00_axis_transacted || purging) && !waiting_for_s00_axis_finish)),
       .count(output_transaction_count)
   );
 
-  assign s00_axis_tready = m00_axis_tready || waiting_for_s00_axis_finish;
+  assign s00_axis_tready = (m00_axis_tready && !purging) || waiting_for_s00_axis_finish;
   assign m00_axis_tvalid = (s00_axis_tvalid && !waiting_for_s00_axis_finish) || (purging);
   assign m00_axis_tstrb  = '1;  // always valid bytes on output
   always_comb begin
@@ -87,5 +91,7 @@ module model_interface #(
     end
   end
 
-  assign m00_axis_tlast = (s00_axis_tlast && !waiting_for_s00_axis_finish) || last_purge;  // one before going into waiting state
+  assign m00_axis_tlast = ((output_transaction_count == ($clog2(
+          MAXIMUM_CYCLES + 1
+      ))'(MAXIMUM_CYCLES - 1))) || last_purge;  // one before going into waiting state
 endmodule
