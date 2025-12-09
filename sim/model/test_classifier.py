@@ -23,7 +23,7 @@ from model import export_weights  # noqa: F401 - will run `add_safe_globals`
 
 
 DATA_TYPE = torch.int8
-NUM_ITER = 11
+NUM_ITER = 150
 C_S00_AXIS_TDATA_WIDTH = 32
 
 
