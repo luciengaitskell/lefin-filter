@@ -72,6 +72,7 @@ class ReplayConfig(BaseModel):
     specific_ids_file: Path | None = None
     benign_label_names: list[str] | None = None
     allowlist_label_names: list[str] | None = None
+    debug: bool = False  # Enable debug mode with detailed packet ordering logs
 
 
 # ----------------------------------------------------------------------------
@@ -226,16 +227,32 @@ def run_replay(cfg: ReplayConfig):
 
     sent_times: Dict[int, float] = {}
     labels: Dict[int, int] = {}
-    # Maps hash-based sample_id -> dataset index (sid) so we can
+    sent_packets: Dict[int, bytes] = {}  # Maps sample_id -> raw packet bytes
+    # Maps sample_id -> dataset index (sid) so we can
     # later export both hash IDs and dataset indices for misses.
-    hash_to_idx: Dict[int, int] = {}
+    sample_to_idx: Dict[int, int] = {}
     skipped_dataset_ids: list[int] = []
+
+    # Debug mode: track packet sequence and order
+    send_sequence: list[Tuple[int, int, int]] = []  # (send_order, sample_id, label)
+    recv_sequence: list[Tuple[int, int, int]] = []  # (recv_order, sample_id, label)
+    debug_log_path = None
+    debug_log_file = None
+    if cfg.debug:
+        debug_log_path = cfg.out_dir / "replay_debug_packet_order.txt"
+        debug_log_file = debug_log_path.open("w")
+        debug_log_file.write("=== PACKET ORDERING DEBUG LOG ===\n")
+        debug_log_file.write(
+            f"Layer: {cfg.payload_layer}, Benign labels: {cfg.benign_label_names}\n\n"
+        )
 
     pbar = tqdm(total=total, desc="sending", unit="pkt", dynamic_ncols=True)
     batch = cfg.batch
     inter = None
     if cfg.pps and cfg.pps > 0:
         inter = 1.0 / cfg.pps
+
+    send_order = 0
 
     for start in range(0, total, batch):
         end = min(start + batch, total)
@@ -266,16 +283,20 @@ def run_replay(cfg: ReplayConfig):
                 # Stored bytes are application payload; wrap with Ether/IP/UDP and prepend tag
                 pkt = _build_packet(sid, label, payload, cfg)
 
-            # Use a hash of the on-wire bytes as the ID for pass/fail tracking.
-            # This is robust for L2 loopback tests where frames are either passed
-            # unchanged or dropped by the appliance.
+            # Use dataset index as sample_id and store raw bytes for comparison
             pkt_bytes = bytes(pkt)
-            sample_id = _hash_bytes(pkt_bytes)
+            sample_id = sid
 
             pkts.append(pkt)
             sent_times[sample_id] = time.time()
             labels[sample_id] = label
-            hash_to_idx[sample_id] = sid
+            sent_packets[sample_id] = pkt_bytes
+            sample_to_idx[sample_id] = sid
+
+            # Debug: track send order
+            if cfg.debug:
+                send_sequence.append((send_order, sample_id, label))
+                send_order += 1
         if pkts:
             sendp(pkts, iface=cfg.tx_iface, inter=inter, verbose=False)
             pbar.update(len(pkts))
@@ -287,13 +308,28 @@ def run_replay(cfg: ReplayConfig):
     sniffer.join(timeout=cfg.timeout)
     captured = sniffer.results or []
 
-    # Match captures
+    # Match captures by comparing raw bytes
     seen: Dict[int, float] = {}
+    recv_packets: Dict[int, bytes] = {}  # Maps sample_id -> received raw bytes
+    recv_order = 0
     for pkt in captured:
-        sid, lbl = _extract_tag(pkt)
-        if sid is None:
-            continue
-        seen[sid] = getattr(pkt, "time", time.time())
+        pkt_bytes = bytes(pkt)
+
+        # Try to find matching sent packet by comparing bytes
+        matched_sid = None
+        for sent_sid, sent_bytes in sent_packets.items():
+            if pkt_bytes == sent_bytes:
+                matched_sid = sent_sid
+                break
+
+        if matched_sid is not None:
+            seen[matched_sid] = getattr(pkt, "time", time.time())
+            recv_packets[matched_sid] = pkt_bytes
+            # Debug: track receive order
+            if cfg.debug:
+                recv_label = labels.get(matched_sid, -1)
+                recv_sequence.append((recv_order, matched_sid, recv_label))
+                recv_order += 1
 
     passed: list[int] = []
     missed: list[int] = []
@@ -332,10 +368,9 @@ def run_replay(cfg: ReplayConfig):
         malicious_total = 0
         malicious_drop = 0
 
-        # We iterate over all sent sample_ids, map back to dataset index and
-        # then to label index -> label name.
-        for sid_hash, send_ts in sent_times.items():
-            ds_idx = hash_to_idx.get(sid_hash)
+        # We iterate over all sent sample_ids and check if they were received.
+        for sample_id, send_ts in sent_times.items():
+            ds_idx = sample_to_idx.get(sample_id)
             if ds_idx is None or ds_idx >= len(y_test):
                 continue
             lbl_idx = int(y_test[ds_idx])
@@ -345,7 +380,7 @@ def run_replay(cfg: ReplayConfig):
                 lbl_name = str(lbl_idx)
 
             is_benign = lbl_name in benign_set
-            seen_pass = sid_hash in seen
+            seen_pass = sample_id in seen
 
             if is_benign:
                 benign_total += 1
@@ -371,20 +406,15 @@ def run_replay(cfg: ReplayConfig):
                 f"(benign_total={benign_total}, malicious_total={malicious_total})"
             )
 
-    # Dump misses for inspection: write both hash IDs and dataset indices.
+    # Dump misses for inspection: write dataset indices.
     if missed:
-        miss_hashes = sorted(set(missed))
-        miss_idxs = sorted({hash_to_idx[h] for h in missed if h in hash_to_idx})
-
-        miss_hash_path = cfg.out_dir / "replay_missed_hashes.txt"
-        miss_hash_path.write_text("\n".join(str(m) for m in miss_hashes))
+        miss_idxs = sorted(set(missed))
 
         miss_idx_path = cfg.out_dir / "replay_missed_dataset_ids.txt"
         miss_idx_path.write_text("\n".join(str(i) for i in miss_idxs))
 
         tqdm.write(
-            f"Missed {len(missed)} packets; unique hashes written to {miss_hash_path}, "
-            f"dataset indices written to {miss_idx_path}"
+            f"Missed {len(missed)} packets; dataset indices written to {miss_idx_path}"
         )
 
     # Dump skipped oversized payload dataset indices for inspection
@@ -396,6 +426,107 @@ def run_replay(cfg: ReplayConfig):
             f"Skipped {len(skipped_dataset_ids)} oversized samples; "
             f"dataset indices written to {skip_path}"
         )
+
+    # Debug mode: write packet ordering and byte comparison analysis
+    if cfg.debug and debug_log_file:
+        debug_log_file.write(f"\n=== SEND SEQUENCE (first 50) ===\n")
+        debug_log_file.write("order | sample_id | label | pkt_bytes_len | status\n")
+        for order, sid, lbl in send_sequence[:50]:
+            status = "RECV" if sid in seen else "MISS"
+            pkt_len = len(sent_packets.get(sid, b""))
+            debug_log_file.write(
+                f"{order:5} | {sid:9} | {lbl:5} | {pkt_len:13} | {status}\n"
+            )
+
+        debug_log_file.write(f"\n=== RECEIVE SEQUENCE (first 50) ===\n")
+        debug_log_file.write(
+            "order | sample_id | label | pkt_bytes_len | match_status\n"
+        )
+        for order, sid, lbl in recv_sequence[:50]:
+            pkt_len = len(recv_packets.get(sid, b""))
+            sent_bytes = sent_packets.get(sid, b"")
+            recv_bytes = recv_packets.get(sid, b"")
+            match_status = "MATCH" if sent_bytes == recv_bytes else "DIFFER"
+            debug_log_file.write(
+                f"{order:5} | {sid:9} | {lbl:5} | {pkt_len:13} | {match_status}\n"
+            )
+
+        # Analyze reordering by comparing sequences
+        if send_sequence and recv_sequence:
+            send_sids = [sid for _, sid, _ in send_sequence]
+            recv_sids = [sid for _, sid, _ in recv_sequence]
+
+            # Check if packets are reordered
+            debug_log_file.write(f"\n=== ORDERING ANALYSIS ===\n")
+            debug_log_file.write(f"Total sent: {len(send_sequence)}\n")
+            debug_log_file.write(f"Total received: {len(recv_sequence)}\n")
+
+            # Check for monotonic increase (no reordering)
+            is_monotonic = (
+                all(recv_sids[i] <= recv_sids[i + 1] for i in range(len(recv_sids) - 1))
+                if len(recv_sids) > 1
+                else True
+            )
+            debug_log_file.write(f"Packets in order: {is_monotonic}\n")
+
+            # Count how many received packets match send position
+            in_order_count = 0
+            for recv_idx, recv_sid in enumerate(recv_sids[:50]):
+                if recv_idx < len(send_sids) and send_sids[recv_idx] == recv_sid:
+                    in_order_count += 1
+            debug_log_file.write(
+                f"Packets in correct position (first 50): {in_order_count}/50\n"
+            )
+
+            # Byte comparison analysis
+            debug_log_file.write(f"\n=== BYTE COMPARISON (first 20) ===\n")
+            bytes_match = 0
+            bytes_differ = 0
+            for sample_id in recv_sids[:20]:
+                sent_bytes = sent_packets.get(sample_id, b"")
+                recv_bytes = recv_packets.get(sample_id, b"")
+                if sent_bytes == recv_bytes:
+                    bytes_match += 1
+                    debug_log_file.write(
+                        f"sample_id={sample_id}: MATCH (len={len(sent_bytes)})\n"
+                    )
+                else:
+                    bytes_differ += 1
+                    debug_log_file.write(
+                        f"sample_id={sample_id}: DIFFER sent_len={len(sent_bytes)} recv_len={len(recv_bytes)}\n"
+                    )
+                    # Show first difference
+                    for i, (sb, rb) in enumerate(zip(sent_bytes, recv_bytes)):
+                        if sb != rb:
+                            debug_log_file.write(
+                                f"  First difference at byte {i}: sent=0x{sb:02x} recv=0x{rb:02x}\n"
+                            )
+                            break
+            debug_log_file.write(
+                f"\nBytes match: {bytes_match}, Bytes differ: {bytes_differ}\n"
+            )
+
+            # Show benign vs malicious breakdown
+            if cfg.benign_label_names:
+                benign_set = set(cfg.benign_label_names)
+                send_benign = sum(
+                    1
+                    for _, sid, lbl in send_sequence
+                    if lbl in benign_set
+                    or (0 <= lbl < len(label_names) and label_names[lbl] in benign_set)
+                )
+                recv_benign = sum(
+                    1
+                    for _, sid, lbl in recv_sequence
+                    if lbl in benign_set
+                    or (0 <= lbl < len(label_names) and label_names[lbl] in benign_set)
+                )
+                debug_log_file.write(
+                    f"\nBenign sent: {send_benign}, Benign received: {recv_benign}\n"
+                )
+
+        debug_log_file.close()
+        tqdm.write(f"Debug packet ordering written to {debug_log_path}")
 
 
 # ----------------------------------------------------------------------------
@@ -464,6 +595,10 @@ def run(
         None,
         help="Comma-separated list of label names; only samples with these labels are replayed",
     ),
+    debug: bool = typer.Option(
+        False,
+        help="Enable debug mode: writes detailed packet ordering to replay_debug_packet_order.txt",
+    ),
 ):
     dataset_cfg = DEFAULT_CONFIG.model_copy(
         update={
@@ -498,6 +633,7 @@ def run(
         allowlist_label_names=[s.strip() for s in allowlist_labels.split(",")]
         if allowlist_labels
         else None,
+        debug=debug,
     )
     run_replay(cfg)
 
