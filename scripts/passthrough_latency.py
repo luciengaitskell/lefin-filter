@@ -12,17 +12,21 @@ app = typer.Typer(
     help="One-way latency over DAC using AF_PACKET + HW TX/RX timestamping"
 )
 
+# ---- Fallback constants for older Python builds ----
+SO_TIMESTAMPING = getattr(
+    socket, "SO_TIMESTAMPING", 37
+)  # SOL_SOCKET option 37 [web:139]
+MSG_ERRQUEUE = getattr(socket, "MSG_ERRQUEUE", 0x2000)
+
 # Custom Ethertype for our test frames
 ETH_P_CUSTOM = 0x88B5
 
-# SO_TIMESTAMPING flags (from linux/net_tstamp.h)
+# SO_TIMESTAMPING flag bits (from linux/net_tstamp.h)
 SOF_TIMESTAMPING_TX_HARDWARE = 1 << 0
 SOF_TIMESTAMPING_TX_SOFTWARE = 1 << 1
 SOF_TIMESTAMPING_RX_HARDWARE = 1 << 2
 SOF_TIMESTAMPING_RX_SOFTWARE = 1 << 3
 SOF_TIMESTAMPING_RAW_HARDWARE = 1 << 6
-
-MSG_ERRQUEUE = getattr(socket, "MSG_ERRQUEUE", 0x2000)
 
 
 def mac_bytes_to_str(b: bytes) -> str:
@@ -37,7 +41,7 @@ def enable_timestamping(sock: socket.socket) -> None:
         | SOF_TIMESTAMPING_RX_SOFTWARE
         | SOF_TIMESTAMPING_RAW_HARDWARE
     )
-    sock.setsockopt(socket.SOL_SOCKET, socket.SO_TIMESTAMPING, flags)
+    sock.setsockopt(socket.SOL_SOCKET, SO_TIMESTAMPING, flags)
 
 
 def parse_scm_timestamping(cdata: bytes):
@@ -48,7 +52,7 @@ def parse_scm_timestamping(cdata: bytes):
     if len(cdata) < 48:
         return None
     sec0, nsec0, sec1, nsec1, sec2, nsec2 = struct.unpack("qqqqqq", cdata[:48])
-    # [0]=software, [1]=hw->system, [2]=raw hw per kernel docs. [web:37][web:106]
+    # [0]=software, [1]=hw->system, [2]=raw hw per kernel docs. [web:37][web:57]
     if sec2 or nsec2:
         return ("hw_raw", sec2, nsec2)
     if sec1 or nsec1:
@@ -67,7 +71,7 @@ def recv_with_timestamp(sock: socket.socket, timeout: float):
     frame, ancdata, flags, addr = sock.recvmsg(2048, 512)
     ts = None
     for level, ctype, cdata in ancdata:
-        if level == socket.SOL_SOCKET and ctype == socket.SO_TIMESTAMPING:
+        if level == socket.SOL_SOCKET and ctype == SO_TIMESTAMPING:
             ts = parse_scm_timestamping(cdata)
     return frame, addr, ts
 
@@ -87,7 +91,7 @@ def get_tx_timestamp(sock: socket.socket, timeout: float):
             raise
 
         for level, ctype, cdata in ancdata:
-            if level == socket.SOL_SOCKET and ctype == socket.SO_TIMESTAMPING:
+            if level == socket.SOL_SOCKET and ctype == SO_TIMESTAMPING:
                 ts = parse_scm_timestamping(cdata)
                 if ts is not None:
                     return ts
@@ -100,12 +104,10 @@ def make_af_packet_socket(iface: str) -> Tuple[socket.socket, bytes]:
     proto = socket.htons(ETH_P_CUSTOM)
     s = socket.socket(socket.AF_PACKET, socket.SOCK_RAW, proto)
     s.setblocking(False)
-    s.bind(
-        (iface, proto)
-    )  # filter to our ethertype on that interface [web:118][web:119]
+    s.bind((iface, proto))  # filter to our ethertype on that interface
     enable_timestamping(s)
 
-    # Local MAC from AF_PACKET getsockname()[4] (first 6 bytes). [web:114][web:117]
+    # Local MAC from AF_PACKET getsockname()[4] (first 6 bytes).
     sn = s.getsockname()
     local_mac = sn[4][:6]
     return s, local_mac
@@ -163,7 +165,7 @@ def oneway(
                 rx_type = rx_frame[12:14]
                 rx_payload = rx_frame[14:]
 
-                # Filter: our ethertype, our magic, correct MACs
+                # Filter: our ethertype, magic, sequence, and MACs
                 if rx_type != eth_type:
                     continue
                 if rx_payload[:3] != b"OWD":
@@ -179,7 +181,7 @@ def oneway(
                     break
 
                 kind_rx, sec_rx, nsec_rx = ts_rx
-                # One-way delay in seconds, using two NIC/PHC-based timestamps. [web:37][web:55]
+                # One-way delay in seconds using two NIC/PHC-based timestamps. [web:37][web:57]
                 owd_sec = (sec_rx - sec_tx) + (nsec_rx - nsec_tx) / 1e9
                 typer.echo(
                     f"[{seq}] OWD={owd_sec * 1e6:.3f} us "
