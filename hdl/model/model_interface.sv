@@ -50,7 +50,7 @@ module model_interface #(
       PURGE_CYCLES + 1
   ))'(PURGE_CYCLES)) || (purging && (output_transaction_count == ($clog2(
       MAXIMUM_CYCLES + 1
-  ))'(MAXIMUM_CYCLES))));
+  ))'(MAXIMUM_CYCLES - 1))));
   counter #(
       .MAXIMUM  (PURGE_CYCLES + 1),
       .ROLL_OVER(0)
