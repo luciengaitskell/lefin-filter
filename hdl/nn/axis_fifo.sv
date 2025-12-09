@@ -109,6 +109,11 @@ module axis_fifo #(
               s00_axis_tready <= 1;
               m00_axis_tvalid <= 0;
             end
+            3'b010: begin
+              // stay in FILL_ONLY
+              s00_axis_tready <= 1;
+              m00_axis_tvalid <= 0;
+            end
             3'b110: begin  // keep_packet only
               cur_state <= FILL_AND_DRAIN;
               read_ptr <= 0;  // reset read pointer
@@ -144,11 +149,6 @@ module axis_fifo #(
               cur_state <= FILL_ONLY;  // RESET FIFO
               read_ptr <= 0;  // reset read pointer
               write_ptr <= 0;  // reset write pointer  
-              s00_axis_tready <= 1;
-              m00_axis_tvalid <= 0;
-            end
-            default: begin
-              // stay in FILL_ONLY
               s00_axis_tready <= 1;
               m00_axis_tvalid <= 0;
             end
