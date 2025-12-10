@@ -317,7 +317,7 @@ def run_replay(cfg: ReplayConfig):
     seen: Dict[int, float] = {}
     recv_packets: Dict[int, bytes] = {}  # Maps sample_id -> received raw bytes
     recv_order = 0
-    for pkt in captured:
+    for pkt in tqdm(captured, desc="matching", unit="pkt", dynamic_ncols=True):
         pkt_bytes = bytes(pkt)
 
         # Try to find matching sent packet by comparing bytes
@@ -339,7 +339,9 @@ def run_replay(cfg: ReplayConfig):
     passed: list[int] = []
     missed: list[int] = []
     latencies = []
-    for sid, send_ts in sent_times.items():
+    for sid, send_ts in tqdm(
+        sent_times.items(), desc="postprocess", unit="pkt", dynamic_ncols=True
+    ):
         if sid in seen:
             rtt = (seen[sid] - send_ts) * 1e3  # ms
             latencies.append(rtt)
@@ -359,7 +361,7 @@ def run_replay(cfg: ReplayConfig):
 
     # Per-label stats
     per_label = {}
-    for sid in passed:
+    for sid in tqdm(passed, desc="per-label stats", unit="pkt", dynamic_ncols=True):
         lbl = labels.get(sid, -1)
         per_label[lbl] = per_label.get(lbl, 0) + 1
     tqdm.write(f"Received per label: {per_label}")
@@ -374,7 +376,12 @@ def run_replay(cfg: ReplayConfig):
         malicious_drop = 0
 
         # We iterate over all sent sample_ids and check if they were received.
-        for sample_id, send_ts in sent_times.items():
+        for sample_id, send_ts in tqdm(
+            sent_times.items(),
+            desc="benign/malicious eval",
+            unit="pkt",
+            dynamic_ncols=True,
+        ):
             ds_idx = sample_to_idx.get(sample_id)
             if ds_idx is None or ds_idx >= len(y_test):
                 continue
