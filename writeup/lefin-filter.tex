@@ -59,7 +59,7 @@ The IEEE 802.3 standard defines Ethernet, a technology connecting devices everyw
 
 Ethernet operates on the 1st (Physical) and 2nd (Data Link) layers of the OSI model. For this project we focus on the second layer, where Ethernet operates using frames as seen in Fig. \ref{fig:ether-frame}.
 
-While the data payload field is often encrypted, encryption methods may be unique to certain programs (e.g., Gmail, FaceTime, Cridex malware, Zeus malware). Therefore, accurate classification can be accomplished by individually inspecting entire frames with a convolutional neural network\cite{paper-wang-conv1d}. Finally, filtering can be accomplished by first classifying a frame as benign or malicious, then only propagating benign frames.
+While the data payload field is often encrypted, encryption methods may be unique to certain programs (e.g., Gmail, FaceTime, Cridex malware, Zeus malware). Therefore, accurate classification can be accomplished by individually inspecting entire frames with a convolutional neural network\cite{paper-wang-conv1d}. Finally, filtering can be accomplished by first classifying a frame as benign or malicious, then only propagating benign frames and dropping the malicious ones.
 \begin{figure}
     \centering
     \includegraphics[width=1\linewidth]{images/ether_frame.png}
@@ -537,6 +537,10 @@ The results shown in Table \ref{tab:results-latency} show
 that we are unable to measure the latency with our current setup.
 Additionally, it indicates that the timestamping script and/or
 \texttt{tcpdump} is likely not using HW timestamps.
+
+Although we ran out of time to continue to debug the evaluation
+infrastructure, it remains an open problem to properly benchmark
+the network latency of LEFIN-Filter.
 
 \section{Discussion}
 \subsection{Implementation report}
