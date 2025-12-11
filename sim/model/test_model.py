@@ -25,13 +25,13 @@ from model import export_weights  # noqa: F401 - will run `add_safe_globals`
 
 
 DATA_TYPE = torch.int8
-NUM_ITER = 11
+NUM_ITER = 50
 C_S00_AXIS_TDATA_WIDTH = 32
 
 
 class ModelTestbench(AXIS_Testbench):
     def __init__(self, dut, **kwargs):
-        super().__init__(dut, **kwargs)
+        super().__init__(dut, log_in=False, log_out=False, **kwargs)
         self.scoreboard_queue: deque[tuple[Tensor, Tensor]]
         self.layer = nn.AdaptiveMaxPool1d(1)  # 1 output (per channel): global max pool
         self.expected_data_out = []  # contains list of expected outputs (Growing)
@@ -101,9 +101,7 @@ class ModelTestbench(AXIS_Testbench):
                 f"Mismatch! Got {result}, expected {expected_result} for input: \n{input_vals}\nRaw 0x{raw_result:x} != expected 0x{expected_raw:x}"
             )
         else:
-            self.dut._log.info(
-                f"Match! Got {result},expected {expected_result} for input {input_vals}"
-            )
+            self.dut._log.info(f"Match! Got {result}, expected {expected_result}")
         return result_okay
 
     def send_test_input(self):
@@ -117,11 +115,8 @@ class ModelTestbench(AXIS_Testbench):
 
         with torch.no_grad():
             logits = self.model(x_one_t.float().reshape(1, 1, x_one.shape[0]))
-            probs = torch.softmax(logits, dim=1)
-            preds = probs.argmax(dim=1)
-
-        print("preds:", preds.numpy())
-        print("labels:", y_one)
+            # probs = torch.softmax(logits, dim=1)
+            # preds = probs.argmax(dim=1)
 
         chunked_input_data = x_one_t.to(torch.int8).split(
             int(self.dut.INPUT_WIDTH.value)
@@ -161,7 +156,7 @@ async def test_a(dut):
     # always be ready to receive data:
     tb.outd.append({"type": "read", "duration": NUM_ITER})
 
-    await ClockCycles(dut.aclk, 3500)
+    await ClockCycles(dut.aclk, 11000)
     assert NUM_ITER == tb.outm.transactions, "Transaction Count doesn't match! :-/"
     print(
         f"in transactions: {tb.inm.transactions}, out transactions: {tb.outm.transactions}"

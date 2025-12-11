@@ -20,7 +20,9 @@ class AXIS_Monitor(BusMonitor):
 
     transactions = 0  # use this variable to track good ready/valid handshakes
 
-    def __init__(self, dut, name, clk, callback=None, *, include_metadata=False):
+    def __init__(
+        self, dut, name, clk, callback=None, *, log_data=None, include_metadata=False
+    ):
         self._signals = [
             "axis_tvalid",
             "axis_tready",
@@ -33,6 +35,7 @@ class AXIS_Monitor(BusMonitor):
         self.clock = clk
         self.transactions = 0
         self.dut = dut
+        self.log_data = log_data
         self.include_metadata = include_metadata
 
     async def _monitor_recv(self):
@@ -67,7 +70,8 @@ class AXIS_Monitor(BusMonitor):
                     if signal is not None:
                         all_data[field_name] = signal.value.to_unsigned()
 
-                self.dut._log.info(f"{self.name}: {all_data}")
+                if self.log_data:
+                    self.dut._log.info(f"{self.name}: {all_data}")
                 if self.include_metadata:
                     self._recv(all_data)
                 else:
@@ -164,7 +168,7 @@ class M_AXIS_Driver(AXIS_Driver):
 
 
 class S_AXIS_Driver(BusDriver):
-    def __init__(self, dut, name, clk):
+    def __init__(self, dut, name, clk, *, log_transactions=True):
         self._signals = [
             "axis_tvalid",
             "axis_tready",
@@ -172,6 +176,7 @@ class S_AXIS_Driver(BusDriver):
             "axis_tdata",
             "axis_tstrb",
         ]
+        self.log_transactions = log_transactions
         AXIS_Driver.__init__(self, dut, name, clk)
         self.bus.axis_tready.value = 0
 
@@ -205,16 +210,26 @@ class S_AXIS_Driver(BusDriver):
                     # async efficient wait for valid on transaction
                     await RisingEdge(self.bus.axis_tvalid)
                     await self.rising_edge  # transaction happens here
-                self.dut._log.info(
-                    f"Read transaction {i + 1}/{duration} occurred with data {int(self.bus.axis_tdata.value)}"
-                )
+                if self.log_transactions:
+                    self.dut._log.info(
+                        f"Read transaction {i + 1}/{duration} occurred with data {int(self.bus.axis_tdata.value)}"
+                    )
                 await self.falling_edge
             self.bus.axis_tready.value = 0
         else:
             raise ValueError(f"Unknown command {value}")
 
 class AXIS_Testbench:
-    def __init__(self, dut, *, monitor_kwargs=None):
+    def __init__(
+        self,
+        dut,
+        *,
+        enable_in=True,
+        enable_out=True,
+        monitor_kwargs=None,
+        log_in=True,
+        log_out=True,
+    ):
         self.dut = dut
         self.scoreboard = Scoreboard(dut, fail_immediately=False)
         self.scoreboard_queue: deque = deque()
@@ -222,29 +237,35 @@ class AXIS_Testbench:
         self.data_out = []
         monitor_kwargs = monitor_kwargs or {}
 
-        self.inm = AXIS_Monitor(
-            dut,
-            "s00",
-            dut.aclk,
-            callback=self.in_callback,
-            **monitor_kwargs,
-        )
-        self.ind = M_AXIS_Driver(dut, "s00", dut.aclk)  # M driver for S port
+        if enable_in:
+            self.inm = AXIS_Monitor(
+                dut,
+                "s00",
+                dut.aclk,
+                callback=self.in_callback,
+                log_data=log_in,
+                **monitor_kwargs,
+            )
+            self.ind = M_AXIS_Driver(dut, "s00", dut.aclk)  # M driver for S port
 
-        self.outm = AXIS_Monitor(
-            dut,
-            "m00",
-            dut.aclk,
-            callback=self.out_callback,
-            **monitor_kwargs,
-        )
-        self.outd = S_AXIS_Driver(dut, "m00", dut.aclk)  # S driver for M port
+        if enable_out:
+            self.outm = AXIS_Monitor(
+                dut,
+                "m00",
+                dut.aclk,
+                callback=self.out_callback,
+                log_data=log_out,
+                **monitor_kwargs,
+            )
+            self.outd = S_AXIS_Driver(
+                dut, "m00", dut.aclk, log_transactions=log_out
+            )  # S driver for M port
 
-        self.scoreboard.add_interface(
-            self.outm,
-            self.scoreboard_queue,
-            compare_fn=self.compare_fn,
-        )
+            self.scoreboard.add_interface(
+                self.outm,
+                self.scoreboard_queue,
+                compare_fn=self.compare_fn,
+            )
 
     def compare_fn(self, result):
         expected_result = self.scoreboard_queue.popleft()

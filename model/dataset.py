@@ -12,7 +12,7 @@ from __future__ import annotations
 import hashlib
 import json
 from pathlib import Path
-from typing import Dict, List, Literal, Sequence, Tuple
+from typing import Any, Dict, List, Literal, Sequence, Tuple
 
 import numpy as np
 import typer
@@ -199,6 +199,7 @@ def preprocess(config: DatasetConfig = DEFAULT_CONFIG) -> DatasetSummary:
 
     config.dataset_dir.mkdir(parents=True, exist_ok=True)
     samples: List[np.ndarray] = []
+    raw_samples: List[bytes] = []
     labels: List[int] = []
     dedupe_hashes = set()
     deduped_count = 0
@@ -230,6 +231,9 @@ def preprocess(config: DatasetConfig = DEFAULT_CONFIG) -> DatasetSummary:
                             continue
                         dedupe_hashes.add(digest)
                     samples.append(arr)
+                    raw_samples.append(
+                        payload if isinstance(payload, bytes) else bytes(payload)
+                    )
                     labels.append(label_idx)
                     per_label_counts[label] += 1
                     capped += 1
@@ -255,6 +259,11 @@ def preprocess(config: DatasetConfig = DEFAULT_CONFIG) -> DatasetSummary:
     images = np.stack(samples, axis=0).astype(np.uint8)
     label_arr = np.array(labels, dtype=np.int64)
 
+    # Raw variable-length payloads are stored alongside the fixed-size arrays
+    # as a simple NumPy object array so we can reuse the exact bytes later
+    # (e.g., for replay scripts that need full L2/L3/L7 payloads).
+    raw_arr = np.array(raw_samples, dtype=object)
+
     perm = rng.permutation(len(images))
     n_test = int(round(len(images) * config.test_size))
     if len(images) > 1:
@@ -267,9 +276,22 @@ def preprocess(config: DatasetConfig = DEFAULT_CONFIG) -> DatasetSummary:
     train_x, train_y = images[train_idx], label_arr[train_idx]
     test_x, test_y = images[test_idx], label_arr[test_idx]
 
+    train_raw = raw_arr[train_idx]
+    test_raw = raw_arr[test_idx]
+
     config.dataset_dir.mkdir(parents=True, exist_ok=True)
     np.savez_compressed(config.dataset_dir / "train.npz", x=train_x, y=train_y)
     np.savez_compressed(config.dataset_dir / "test.npz", x=test_x, y=test_y)
+
+    # Save parallel raw payload splits for consumers that need the original
+    # variable-length bytes (e.g., replay over a NIC). These are kept separate
+    # from the fixed-size tensors used for training.
+    np.savez_compressed(
+        config.dataset_dir / "train_raw.npz", payloads=train_raw, y=train_y
+    )
+    np.savez_compressed(
+        config.dataset_dir / "test_raw.npz", payloads=test_raw, y=test_y
+    )
 
     train_counts = {
         label: int((train_y == idx).sum()) for idx, label in enumerate(label_names)
@@ -291,7 +313,7 @@ def preprocess(config: DatasetConfig = DEFAULT_CONFIG) -> DatasetSummary:
     metadata["config"] = config.model_dump()
     config.metadata_path.write_text(json.dumps(metadata, indent=2, default=str))
     typer.echo(
-        f"Saved dataset to: {config.dataset_dir} (train.npz, test.npz, metadata.json)"
+        f"Saved dataset to: {config.dataset_dir} (train.npz, test.npz, train_raw.npz, test_raw.npz, metadata.json)"
     )
     typer.echo(f"Dedupe stats: removed {deduped_count} duplicates prior to split")
     return summary
@@ -310,6 +332,39 @@ def load_split_arrays(
         raise FileNotFoundError(f"Split not found: {path}. Run preprocess first.")
     data = np.load(path)
     return data["x"], data["y"]
+
+
+def load_split_raw(
+    config: DatasetConfig = DEFAULT_CONFIG, split: Literal["train", "test"] = "train"
+) -> Tuple[np.ndarray, np.ndarray]:
+    """Load variable-length raw payloads and labels for a split.
+
+    This mirrors `load_split_arrays` but returns the original bytes sequences
+    (stored as an object array) instead of fixed-size, padded tensors.
+    """
+
+    path = config.dataset_dir / f"{split}_raw.npz"
+    if not path.exists():
+        raise FileNotFoundError(
+            f"Raw split not found: {path}. Run preprocess with an updated dataset module."
+        )
+    data = np.load(path, allow_pickle=True)
+    return data["payloads"], data["y"]
+
+
+def load_metadata(config: DatasetConfig = DEFAULT_CONFIG) -> Dict[str, Any]:
+    """Load dataset metadata produced by :func:`preprocess`.
+
+    This provides access to fields like ``label_names`` without callers
+    needing to know about the on-disk JSON layout.
+    """
+
+    if not config.metadata_path.exists():
+        raise FileNotFoundError(
+            f"Metadata not found: {config.metadata_path}. Run preprocess first."
+        )
+    with config.metadata_path.open("r") as f:
+        return json.load(f)
 
 
 def load_splits(

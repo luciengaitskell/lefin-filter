@@ -111,8 +111,7 @@ module axis_conv1d #(
           .KERNEL_WIDTH(KERNEL_WIDTH),
           .CHANNEL_IN_COUNT(CHANNEL_IN_COUNT),
           .CHANNEL_OUT_COUNT(CHANNEL_OUT_COUNT),
-          .STAGE_1_MULT(connector_pkg::SEQUENTIAL),
-          .STAGE_2_ADD(connector_pkg::COMBINATIONAL)
+          .STAGE_1_MULT(connector_pkg::SEQUENTIAL)
       ) conv1d_parallel (
           .clk             (aclk),
           .enable          (m00_axis_tready),
@@ -158,11 +157,14 @@ module axis_conv1d #(
     m00_axis_tvalid = m00_axis_tstrb[0];
   end
 
-  always_ff @(posedge aclk) begin
-    if (m00_axis_tready) begin
-      m00_axis_tlast <= s00_axis_tlast;
-    end
-  end
-
-
+  synchronizer #(
+    .DEPTH(2),
+    .WIDTH(1)
+   ) synchronizer (
+    .clk     (aclk),
+    .rst     (!aresetn),
+    .enable  (m00_axis_tready),
+    .data_in (s00_axis_tlast),
+    .data_out(m00_axis_tlast)
+  );
 endmodule

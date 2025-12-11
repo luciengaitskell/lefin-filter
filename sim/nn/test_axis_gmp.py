@@ -19,13 +19,14 @@ NUM_ITER = 50
 
 class GMPTestbench(AXIS_Testbench):
     def __init__(self, dut, **kwargs):
-        super().__init__(dut, **kwargs)
+        super().__init__(dut, monitor_kwargs=dict(include_metadata=True), **kwargs)
         self.scoreboard_queue: deque[tuple[Tensor, Tensor]]
         self.layer = nn.AdaptiveMaxPool1d(1)  # 1 output (per channel): global max pool
         self.expected_data_out = []  # contains list of expected outputs (Growing)
         self.input_buffer = None
 
-    def in_callback(self, raw_input):
+    def in_callback(self, input_and_metadata):
+        raw_input = input_and_metadata["data"]
         input_values = (
             packed_to_long_torch(
                 raw_input,
@@ -42,10 +43,12 @@ class GMPTestbench(AXIS_Testbench):
         )
         super().in_callback(input_values)
 
-    def compare_fn(self, result):
+    def compare_fn(self, result_and_metadata):
         """Compare the received transaction with the expected output."""
         if not self.scoreboard_queue:
             return False
+
+        result = result_and_metadata["data"]
 
         result = (
             packed_to_long_torch(
@@ -73,6 +76,11 @@ class GMPTestbench(AXIS_Testbench):
             self.dut._log.info(
                 f"Match! Got {result},expected {expected_result} for input {input_vals}"
             )
+
+        if not result_and_metadata["last"]:
+            self.dut._log.error("Expected last signal to be set on output!")
+            self.scoreboard.errors += 1
+            result_okay = False
         return result_okay
 
     def send_input(self, input_values: Tensor):

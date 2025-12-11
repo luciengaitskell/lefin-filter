@@ -13,8 +13,7 @@ from sim.lib.torch import int8_torch_to_packed
 C_S00_AXIS_TDATA_WIDTH = 32
 BIT_WIDTH = 8
 MAXIMUM_INPUT_BYTES = 64
-
-NUM_ITER = 11
+PURGE_CYCLES = 3
 
 
 class ModelInterfaceTestbench(AXIS_Testbench):
@@ -33,11 +32,10 @@ class ModelInterfaceTestbench(AXIS_Testbench):
         if not self.scoreboard_queue:
             return False
 
-        print(result)
         input_vals = self.scoreboard_queue.popleft()
 
         result_okay = True
-        result_okay &= result["strb"] == input_vals["keep"]
+        result_okay &= result["strb"] == (1 << int(self.dut.WIDTH.value)) - 1
         result_okay &= result["data"] == input_vals["data"]
         result_okay &= result["last"] == input_vals["last"]
 
@@ -61,6 +59,20 @@ class ModelInterfaceTestbench(AXIS_Testbench):
             }
         )
 
+        packed_chunks = packed_chunks.copy()
+        chunk_tkeeps = chunk_tkeeps.copy()
+
+        if len(packed_chunks) < int(self.dut.MAXIMUM_CYCLES.value):
+            short_by = int(self.dut.MAXIMUM_CYCLES.value) - len(packed_chunks)
+            extend_cycles = min(short_by, int(self.dut.PURGE_CYCLES.value))
+            print(
+                f"Extending input by {extend_cycles} cycles (was {len(packed_chunks)}, max {self.dut.MAXIMUM_CYCLES.value})"
+            )
+
+            for _ in range(extend_cycles):
+                packed_chunks.append(0)
+                chunk_tkeeps.append(0)
+
         expected_results = [
             {"data": packed, "keep": tkeep, "last": 0}
             for packed, tkeep in islice(
@@ -71,7 +83,8 @@ class ModelInterfaceTestbench(AXIS_Testbench):
         self.scoreboard_queue.extend(expected_results)
 
         expected_read_transactions = min(
-            len(packed_chunks), int(self.dut.MAXIMUM_CYCLES.value)
+            len(packed_chunks),
+            int(self.dut.MAXIMUM_CYCLES.value),
         )
         self.outd.append(
             {
@@ -93,7 +106,7 @@ async def test_a(dut):
 
     test_lengths = [
         *(random.randint(1, MAXIMUM_INPUT_BYTES - 1) for _ in range(3)),
-        *(MAXIMUM_INPUT_BYTES for _ in range(3)),
+        *(MAXIMUM_INPUT_BYTES for _ in range(4)),
         *(
             random.randint(1 + MAXIMUM_INPUT_BYTES, 3 * MAXIMUM_INPUT_BYTES)
             for _ in range(3)
@@ -148,5 +161,6 @@ if __name__ == "__main__":
             "C_S00_AXIS_TDATA_WIDTH": C_S00_AXIS_TDATA_WIDTH,
             "BIT_WIDTH": BIT_WIDTH,
             "MAXIMUM_INPUT_BYTES": MAXIMUM_INPUT_BYTES,
+            "PURGE_CYCLES": PURGE_CYCLES,
         },
     )

@@ -23,8 +23,7 @@ module conv1d #(
     localparam integer OUTPUT_BIT_WIDTH = conv1d_pkg::calculate_output_bit_width(
         INTERMEDIATE_BIT_WIDTH, KERNEL_WIDTH
     ),
-    parameter connector_pkg::logic_style STAGE_1_MULT = connector_pkg::COMBINATIONAL,
-    parameter connector_pkg::logic_style STAGE_2_ADD = connector_pkg::COMBINATIONAL
+    parameter connector_pkg::logic_style STAGE_1_MULT = connector_pkg::COMBINATIONAL
 ) (
     input wire clk,
     input wire enable,
@@ -45,17 +44,40 @@ module conv1d #(
 
   logic [CHANNEL_OUT_COUNT-1:0][KERNEL_WIDTH-1:0] stage_1_valid;
 
-  logic signed [OUTPUT_BIT_WIDTH-1:0] adder_steps[0:CHANNEL_OUT_COUNT-1][0:KERNEL_WIDTH-1];
+  localparam int l_adder_width = KERNEL_WIDTH / 2;
+  logic signed [OUTPUT_BIT_WIDTH-1:0] l_adder_steps[0:CHANNEL_OUT_COUNT-1][0:l_adder_width-1];
+  logic signed [OUTPUT_BIT_WIDTH-1:0] l_adder_result[0:CHANNEL_OUT_COUNT-1];
+  logic signed [OUTPUT_BIT_WIDTH-1:0] r_adder_steps[0:CHANNEL_OUT_COUNT-1][0:(KERNEL_WIDTH-l_adder_width)-1];
+  logic signed [OUTPUT_BIT_WIDTH-1:0] r_adder_result[0:CHANNEL_OUT_COUNT-1];
 
   logic [CHANNEL_OUT_COUNT-1:0] stage_2_valid;
 
   always_comb begin
     for (integer channel_out = 0; channel_out < CHANNEL_OUT_COUNT; channel_out++) begin
-      adder_steps[channel_out][0] = OUTPUT_BIT_WIDTH'(biases[channel_out]) + OUTPUT_BIT_WIDTH'(intermediates[channel_out][0]);
-      for (integer i = 1; i < KERNEL_WIDTH; i++) begin
-        adder_steps[channel_out][i] = adder_steps[channel_out][i-1] + OUTPUT_BIT_WIDTH'(intermediates[channel_out][i]);
+      l_adder_steps[channel_out][0] = OUTPUT_BIT_WIDTH'(intermediates[channel_out][0]);
+      for (integer i = 1; i < l_adder_width; i++) begin
+        l_adder_steps[channel_out][i] = l_adder_steps[channel_out][i-1] + OUTPUT_BIT_WIDTH'(intermediates[channel_out][i]);
+      end
+      r_adder_steps[channel_out][0] = OUTPUT_BIT_WIDTH'(intermediates[channel_out][l_adder_width]);
+      for (integer i = 1; i < (KERNEL_WIDTH - l_adder_width); i++) begin
+        r_adder_steps[channel_out][i] = r_adder_steps[channel_out][i-1] + OUTPUT_BIT_WIDTH'(intermediates[channel_out][i + l_adder_width]);
       end
     end
+  end
+
+  logic add_intermediate_valid[0:CHANNEL_OUT_COUNT-1];
+
+  always_ff @(posedge clk) begin
+    for (integer channel_out = 0; channel_out < CHANNEL_OUT_COUNT; channel_out++) begin
+      if (enable) begin
+        add_intermediate_valid[channel_out] <= &stage_1_valid[channel_out];
+        l_adder_result[channel_out] <= l_adder_steps[channel_out][l_adder_width-1];
+        r_adder_result[channel_out] <= r_adder_steps[channel_out][(KERNEL_WIDTH-l_adder_width)-1];
+        stage_2_valid[channel_out] <= add_intermediate_valid[channel_out];
+        activation[channel_out] <= l_adder_result[channel_out] + r_adder_result[channel_out] + OUTPUT_BIT_WIDTH'(biases[channel_out]);
+      end
+    end
+
   end
 
   generate
@@ -75,18 +97,6 @@ module conv1d #(
             .out_valid(stage_1_valid[channel_out][i])
         );
       end
-
-      connector #(
-          .connectivity(STAGE_2_ADD),
-          .WIDTH       (OUTPUT_BIT_WIDTH)
-      ) connector (
-          .clk(clk),
-          .enable(enable),
-          .in(adder_steps[channel_out][KERNEL_WIDTH-1]),
-          .in_valid(&stage_1_valid[channel_out]),
-          .out(activation[channel_out]),
-          .out_valid(stage_2_valid[channel_out])
-      );
     end
   endgenerate
 
