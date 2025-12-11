@@ -79,8 +79,6 @@ interface, and finally being copied into system memory
 before the CPU can begin executing the filter compute task.
 Even in the most latency-optimized configuration,
 this still requires upwards of $3\mu$s before the
-first byte can be processed \cite{paper-ix-os, paper-neugebauer}, with a similar latency on the outbound path. With some businesses measuring server latency in singular microseconds, the downsides outweigh the benefits of a system like this.
-this still requires upwards of $3\mu$s before the
 first byte can be processed \cite{paper-ix-os, paper-neugebauer}, with a similar latency on the outbound path. With some businesses measuring server latency in single-digit microseconds, the downsides outweigh the benefits of a system like this.
 
 \subsection{Benefits of an FPGA}
@@ -151,7 +149,7 @@ to model architecture, and selected a relatively standard model architecture:
 \end{center}
 
 This model has millions of trainable parameters,
-corresponding to over roughly $40$\,Mbit of weights once quantized to \texttt{int8}.
+corresponding to roughly $40$\,Mbit of weights once quantized to \texttt{int8}.
 
 This large size would be difficult for the synthesis and routing,
 given the $38$Mb of BRAM and $22$Mb of UltraRAM,
@@ -453,7 +451,7 @@ We ran our real-world demonstration and evaluation using the
 \href{https://github.com/davidyslu/USTC-TFC2016}{USTC-TFC2016}
 dataset, which consists of a collection of pcap files of captured raw network packets from various programs shown in Table \ref{tab:dataset}. At the beginning of the project we generated a training and validation split of 9:1, which we kept constant throughout training and testing.
 
-\begin{figure}
+\begin{table}[t]
     \centering
     \begin{tabular}{cccc}
         \textbf{Benign} & \textbf{Malware} & \textbf{Benign} & \textbf{Malware} \\
@@ -466,21 +464,21 @@ dataset, which consists of a collection of pcap files of captured raw network pa
     \end{tabular}
     \caption{USTC-TFC2016 Dataset}
     \label{tab:dataset}
-\end{figure}
+\end{table}
 
 \subsection{Results}
 \subsubsection{Accuracy}
-To evaluate accuracy, we send Ethernet frames from the
+To evaluate accuracy, we sent Ethernet frames from the
 validation split of the dataset from one network interface
-and record the packets received on the other interface.
-This allows the evaluation script to determine the accuracy
+and recorded the packets received on the other interface.
+This allowed the evaluation script to determine the accuracy
 in terms of dropped malicious frames and benign packets
 that are successfully passed through.
 The test script was limited to sending at most $\sim800$ packets
 per second, likely due to a limitation between
 \texttt{scapy}, Python, the operating system, or the NIC drivers.
 
-\begin{figure}
+\begin{table}[t]
     \centering
     \begin{tabular}{cccc}
                               & \textbf{Benign} & \textbf{Malware} \\
@@ -491,7 +489,7 @@ per second, likely due to a limitation between
     \end{tabular}
     \caption{Hardware evaluation run with $\sim30$k test frames}
     \label{tab:results-accuracy}
-\end{figure}
+\end{table}
 
 As demonstrated in the software PyTorch model,
 we achieved over a $99\%$ accuracy.
@@ -515,7 +513,7 @@ which matches the integration block diagram
 in Figure \ref{fig:integration-block-diagram},
 with the LEFIN-Filter module replaced with a Xilinx FIFO IP.
 
-\begin{figure}
+\begin{table}[t]
     \centering
     \begin{tabular}{cccc}
                          & \textbf{Reference Design} & \textbf{LEFIN-Filter} \\
@@ -523,9 +521,9 @@ with the LEFIN-Filter module replaced with a Xilinx FIFO IP.
         \textbf{Maximum} & $10.31\mu$s               & $10.31\mu$s           \\
         \textbf{Average} & $10.29\mu$s               & $10.28\mu$s
     \end{tabular}
-    \caption{Recorded latency timing between Ethernet Subsystem passthrough reference design vs LEFIN-Filter}
+    \caption{Recorded latency timing between Ethernet Subsystem passthrough reference design vs. LEFIN-Filter}
     \label{tab:results-latency}
-\end{figure}
+\end{table}
 
 However, we were unable to successfully run a script
 that monitored the two interfaces while also supporting
@@ -543,7 +541,7 @@ against a passthrough reference design where the LEFIN-Filter module
 was replaced with a Xilinx FIFO IP.
 
 The results shown in Table \ref{tab:results-latency}
-that we are unable to measure the latency with our current setup.
+show that we are unable to measure the latency with our current setup.
 Additionally, it indicates that the timestamping script and/or
 \texttt{tcpdump} is likely not using HW timestamps.
 
@@ -553,12 +551,12 @@ the passthrough will be delayed by:
     \item 3 additional cycles for padding
     \item 2 cycles to go through 1D convolution
     \item 1 cycle to finish global max pool
-    \item 0 cycles to go through full-connected
+    \item 0 cycles to go through fully connected
     \item 1 cycle to go through Comparator
     \item 1 cycle for the FIFO to begin reading
 \end{enumerate}
 Therefore, we estimate, given the $6.4\,$ns clock period,
-an additional latency of around $50 ns$.
+an additional latency of around $50\,\text{ns}$.
 This would be in addition to any latency introduced by the
 Ethernet Subsystem IP.
 
@@ -568,7 +566,7 @@ the network latency of LEFIN-Filter.
 
 \section{Discussion}
 \subsection{Implementation report}
-\begin{figure}
+\begin{table}[t]
     \centering
     \begin{tabular}{cccc}
         \textbf{Resource} & \textbf{Utilization} & \textbf{Available} & \textbf{Utilization \%} \\
@@ -579,9 +577,9 @@ the network latency of LEFIN-Filter.
         DSP               & 7                    & 4272               & 0.16                    \\
         GT                & 2                    & 16                 & 12.5
     \end{tabular}
-    \caption{Vivado Implementation Report}
+    \caption{Vivado implementation report}
     \label{tab:imp_rep}
-\end{figure}
+\end{table}
 
 The FPGA resource utilization, shown in Fig. \ref{tab:imp_rep},
 is relatively low for multiple reasons:
