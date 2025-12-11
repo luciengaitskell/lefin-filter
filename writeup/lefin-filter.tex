@@ -46,7 +46,7 @@ While most traffic is benign, system administrators must still monitor for malwa
 
 Luckily, some, albeit nuanced, patterns exist in the encrypted data which can uniquely identify it with certain programs. Researchers, system administrators, and governments alike have turned to using machine learning models to aid in classification
 \cite{paper-ensafi,paper-wang-conv1d}.
-These models can achieve high accuracy, but their use for real-time filtering in high speed links is impractical, even with powerful servers, due to high overheads moving packets.
+These models can achieve high accuracy, but their use for real-time filtering in high-speed links is impractical, even with powerful servers, due to high overheads moving packets.
 Moving the compute directly next to the
 Ethernet Media Access Controller (MAC)
 eliminates this limitation,
@@ -77,9 +77,11 @@ This requires the packet traversing the Network Interface Controller,
 Peripheral Component Interconnect Express (PCIe)
 interface, and finally being copied into system memory
 before the CPU can begin executing the filter compute task.
-Even in the most latency optimized configuration,
+Even in the most latency-optimized configuration,
 this still requires upwards of $3\mu$s before the
 first byte can be processed \cite{paper-ix-os, paper-neugebauer}, with a similar latency on the outbound path. With some businesses measuring server latency in singular microseconds, the downsides outweigh the benefits of a system like this.
+this still requires upwards of $3\mu$s before the
+first byte can be processed \cite{paper-ix-os, paper-neugebauer}, with a similar latency on the outbound path. With some businesses measuring server latency in single-digit microseconds, the downsides outweigh the benefits of a system like this.
 
 \subsection{Benefits of an FPGA}
 Modern servers with software-defined machine learning are flexible, but this comes at the cost of absolute speed. Baking logic into hardware allows routers and switches to achieve such high bitrates, but these devices become obsolete when a new standard is introduced. The task of network filtering demands the speed of hardware and the flexibility of software to effectively protect against evolving threats without imposing a bottleneck on critical links. Field-Programmable Gate Arrays (FPGAs), often integrated on boards with Ethernet and Quad Small Form-factor Pluggable (QSFP) ports, strike the perfect balance. FPGAs even allow for flexibility beyond model parameters (i.e., model architecture), also putting them a step ahead of ASICs. For this reason, LEFIN-Filter is implemented on an FPGA development board.
@@ -282,15 +284,15 @@ we continue to exhaust and ignore the upstream bytes
 from the Ethernet Subsystem to clear the AXI4-Stream.
 Additionally, for packets shorter than this requirement,
 we pad the outputs to match the padding in software.
-To avoid an unnecessary number of zero padded cycles,
-we limit this purging to 3 cycles,
+To avoid an unnecessary number of zero-padded cycles,
+we limit this purging to three cycles,
 which adds at least 24 padded inputs to complete the
 convolution of the 25 wide convolution kernel.
 The end of the packet is delineated by a \texttt{tlast} signal from
 the Ethernet Subsystem,
 and the clipped or padded packet end
 is also propagated to the model as a \texttt{tlast}.
-This process is described in Figure \ref{fig:mod-inter-fsm}.
+This process is described in Fig. \ref{fig:mod-inter-fsm}.
 
 \subsubsection{Model}
 \begin{figure}
@@ -385,7 +387,7 @@ and outputs, the testbench harnesses have been generalized and shared.
 
 \subsection{Testbenching: Full Model}\label{ref:tb-full-model}
 After the model has been trained, the model parameters are quantized
-and assigned in the model hdl.
+and assigned in the model HDL design.
 The full model testbench allows verification of the
 integration of these layers.
 Although PyTorch does not support evaluation with
@@ -416,7 +418,7 @@ are rejected or passed through.
     \caption{Classification accuracy test at our NIC's maximum rate}
     \label{fig:accuracy-run}
 \end{figure}
-We set up a simulated environment to test our design on the RFSoC 4x2.
+We set up a test environment to evaluate our design on the RFSoC 4x2.
 
 \subsection{Demonstration Platform}
 To evaluate the performance and accuracy of LEFIN-Filter,
@@ -447,7 +449,7 @@ in the IP to enable SFP
 channel 1 and 4 at the same time.
 
 \subsection{Dataset}
-We run our real-world demonstration and evaluation using the
+We ran our real-world demonstration and evaluation using the
 \href{https://github.com/davidyslu/USTC-TFC2016}{USTC-TFC2016}
 dataset, which consists of a collection of pcap files of captured raw network packets from various programs shown in Table \ref{tab:dataset}. At the beginning of the project we generated a training and validation split of 9:1, which we kept constant throughout training and testing.
 
@@ -471,10 +473,10 @@ dataset, which consists of a collection of pcap files of captured raw network pa
 To evaluate accuracy, we send Ethernet frames from the
 validation split of the dataset from one network interface
 and record the packets received on the other interface.
-This allows the evaluation script to determine the accuracy,
+This allows the evaluation script to determine the accuracy
 in terms of dropped malicious frames and benign packets
 that are successfully passed through.
-The test script was limited at sending at most $\sim800$ packets
+The test script was limited to sending at most $\sim800$ packets
 per second, likely due to a limitation between
 \texttt{scapy}, Python, the operating system, or the NIC drivers.
 
@@ -529,9 +531,9 @@ However, we were unable to successfully run a script
 that monitored the two interfaces while also supporting
 hardware timestamping.
 We were able to use the \href{tools/testing/selftests/net/timestamping.c}
-{\texttt{timestamping.c} selftest from the linux kernel}
+{\texttt{timestamping.c} selftest from the Linux kernel}
 to send packets and manually collect TX timestamps,
-at a 5s interval.
+at a 5-second interval.
 We then ran \texttt{tcpdump} with the flags
 \texttt{--time-stamp-precision=nano} and
 \texttt{-j adapter\_unsynced}
@@ -540,7 +542,7 @@ We compared the timing of our full LEFIN-Filter implementation
 against a passthrough reference design where the LEFIN-Filter module
 was replaced with a Xilinx FIFO IP.
 
-The results shown in Table \ref{tab:results-latency} show
+The results shown in Table \ref{tab:results-latency}
 that we are unable to measure the latency with our current setup.
 Additionally, it indicates that the timestamping script and/or
 \texttt{tcpdump} is likely not using HW timestamps.
@@ -580,7 +582,7 @@ is relatively low for multiple reasons:
 In scenarios with back-to-back frame transfers from the Ethernet subsystem, our drop buffer FIFO may cause a backlog if it needs to finish propagating a large packet. Although we were far from reaching this limit and unable to observe it with our demonstration platform, we believe it could be beneficial to proactively address this. To minimize the chances of this backlog, we can implement a variety of solutions ranging from duplicating the FIFO and adding an arbiter for the active FIFO, creating a FIFO which holds and marks more frames, or adding FCS corruption to minimize delay.
 
 \subsection{More Types of Classifications}
-Malware is ever evolving. While the current model architecture is sufficient for identifying the malware vs benign frames, expanding our layers and adding softmax may allow us to classify certain types of malware or types of benign frames.
+Malware is ever-evolving. While the current model architecture is sufficient for identifying malware vs. benign frames, expanding our layers and adding a softmax layer may allow us to classify certain types of malware or types of benign frames.
 
 \subsection{Live Weight Updates and Multi-Model Selection}
 While our model layers take in variable weights, they are currently set at synthesis time. Additionally, with the low utilization of a single model, we could easily fit different models on the FPGA. The filter's AXI4-Lite port could be used to modify weights and select parameters from the processing system layer, removing the need to reflash the FPGA to modify the model.
@@ -589,7 +591,7 @@ While our model layers take in variable weights, they are currently set at synth
 Currently there is no diagnostic or performance data collected
 on device. Such performance counters could allow the model,
 or multiple models, to be evaluated for their accuracy.
-Additionally a sub-sample of rejected or allowed packets
+Additionally, a sub-sample of rejected or allowed packets
 could be redirected to the host memory through DMA for later review.
 
 \section{Acknowledgments}
