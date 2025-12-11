@@ -293,8 +293,15 @@ is also propagated to the model as a \texttt{tlast}.
 This process is described in Figure \ref{fig:mod-inter-fsm}.
 
 \subsubsection{Model}
+\begin{figure}
+    \centering
+    \includegraphics[width=0.9\linewidth]{images/model.png}
+    \caption{Model Layers and AXI4-Stream Interconnects}
+    \label{fig:model-layers}
+\end{figure}
 The model is a pure wrapper around a collection of model layers,
 described below in Section \ref{ref:model-layers}.
+The models are connected to each other as shown in Fig. \ref{fig:model-layers}.
 
 \subsubsection{Comparator}
 The final classification layer in the model outputs the activations,
