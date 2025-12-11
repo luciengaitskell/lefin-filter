@@ -32,7 +32,7 @@
 \maketitle
 
 \begin{abstract}
-    High-speed Ethernet and encryption form the backbone of modern networks and data centers, routing and processing ever-increasing amounts of data every day. It is vital to reject malicious attacks, but encryption aids in their disguise. Researchers have developed machine learning architectures capable of classifying encrypted packets from malicious programs with high accuracy. However, running these models on CPUs or GPUs on typical devices significantly bottlenecks high-speed 10G+ connections. We present a novel Line-rate Ethernet Frame Inline Network Filter (LEFIN-Filter) capable of performing classification and packet handling at line rate, introducing less than $1~\mu\text{s}$ of latency with $>99\%$ accuracy on the USTC-TFC2016 dataset. We develop flexible, specially designed hardware to implement effective models and tooling to train and test said models on an UltraScale+ RFSoC ZU48DR platform.
+    High-speed Ethernet and encryption form the backbone of modern networks and data centers, routing and processing ever-increasing amounts of data every day. It is vital to reject malicious attacks, but encryption aids in their disguise. Researchers have developed machine learning architectures capable of classifying encrypted packets from malicious programs with high accuracy. However, running these models on CPUs or GPUs on typical devices adds significant latency to high-speed 10G+ connections. We present a novel Line-rate Ethernet Frame Inline Network Filter (LEFIN-Filter) capable of performing classification and packet handling at line rate, introducing less than $1~\mu\text{s}$ of latency with $>99\%$ accuracy on the USTC-TFC2016 dataset. We develop flexible, specially designed hardware to implement effective models and tooling to train and test said models on an UltraScale+ RFSoC ZU48DR platform.
 \end{abstract}
 
 \begin{IEEEkeywords}
@@ -55,7 +55,7 @@ This paper introduces such a hardware implementation,
 which both classifies and handles packets at modern line rates.
 
 \subsection{Classifying and Filtering Ethernet Frames}
-The IEEE 802.3 standard defines Ethernet, a technology connecting devices everywhere today. Subsequent revisions and additional clauses have pushed bitrates higher and higher, with consumer devices now supporting bitrates up to 2.5 gigabits per second and modern data center links supporting speeds in excess of 10 Gbps per channel. At these speeds an average Ethernet frame (791 bytes) can be sent in about 640 nanoseconds.
+The IEEE 802.3 standard defines Ethernet, a technology connecting devices everywhere today. Subsequent revisions and additional clauses have pushed bitrates higher and higher, with consumer devices now supporting bitrates up to 2.5 gigabits per second and modern data center links supporting speeds in excess of 10 Gbps per channel. At these speeds a mid-sized Ethernet frame (791 bytes) can be sent in about 640 nanoseconds.
 
 Ethernet operates on the 1st (Physical) and 2nd (Data Link) layers of the OSI model. For this project we focus on the second layer, where Ethernet operates using frames as seen in Fig. \ref{fig:ether-frame}.
 
@@ -71,9 +71,9 @@ While the data payload field is often encrypted, encryption methods may be uniqu
 \subsection{Challenges with a Server Implementation}
 In a software packet filtering approach,
 a server first needs to wait for the
-Network Interface Card to copy the packet into
+Network Interface Card (NIC) to copy the packet into
 the system memory of the network filter server.
-This requires the packet traversing the Network Interface Controller,
+This requires the packet traversing the NIC,
 Peripheral Component Interconnect Express (PCIe)
 interface, and finally being copied into system memory
 before the CPU can begin executing the filter compute task.
@@ -92,7 +92,7 @@ Modern servers with software-defined machine learning are flexible, but this com
 \end{itemize}
 
 \subsection{Anticipated Challenges}
-As with most machine learning models, demonstrated architectures, although small, rely on numerous floating-point multiplies and accumulates (MACs). The model proposed by Wang et al.\cite{paper-wang-conv1d} would require in excess of 19 million of these operations, which would still require a fully utilized advanced FPGA many cycles to perform. Additionally, Ethernet is an intricate standard and imposes specific timing and ordering which our design must respect. Finally, the line rate of modern Ethernet is extremely fast, and producing a system that can process every byte quickly and accurately is challenging.
+As with most machine learning models, demonstrated architectures, although small, rely on numerous floating-point multiplies and accumulates (MACs). The model proposed by Wang et al.\cite{paper-wang-conv1d} would require in excess of $40\,\text{Mb}$ of weights, which would require a large FPGA and difficult routing to accomodate. Additionally, Ethernet is an intricate standard and imposes specific timing and ordering which our design must respect. Finally, the line rate of modern Ethernet is extremely fast, and producing a system that can process every byte quickly and accurately is challenging.
 
 \subsection{Approach}
 To accomplish our goals, we exploit a key feature of Ethernet that often acts as a speed bump for other systems: data transfer as a stream. While other systems have to wait many cycles for an entire frame to be transferred before processing, we instead begin processing as soon as the first bytes arrive, taking advantage of cycles that would otherwise be wasted.
@@ -145,6 +145,7 @@ to model architecture, and selected a relatively standard model architecture:
         $\rightarrow$ MaxPool1d(3, stride 3)
         $\rightarrow$ ReLU
         $\rightarrow$ fully connected
+        $\rightarrow$ ReLU
         $\rightarrow$ fully connected}
 \end{center}
 
@@ -209,7 +210,8 @@ within $0.1\%$.
 \subsection{RFSoC Capabilities and IP}\label{ref:sec-rfsoc-cap}
 We implement our platform on the Real Digital RFSoC 4x2 development kit equipped with the UltraScale+ ZU48DR.
 This FPGA platform is equipped with gigabit transceiver modules (GTY) built into the programmable logic fabric.
-With the addition of a QSFP port, this enables the use of the AMD 10G/25G High Speed Ethernet Subsystem IP providing an intuitive way to connect our filter
+With the addition of a QSFP port, this enables the use of the AMD 10G/25G High Speed Ethernet Subsystem IP \cite{ref-eth-sub}
+providing an intuitive way to connect our filter
 inline to the stream of Ethernet frames.
 This IP core handles the MAC and Physical Coding Sublayer (PCS),
 and provides an AXI4-Stream interface for both the TX and RX datapaths.
@@ -313,7 +315,7 @@ with a classification value bit.
 
 \subsection{Model Layers}\label{ref:model-layers}
 The inputs and outputs are packed AXI4-Stream buses,
-in the standardized pattern set out in PyTorch's \texttt{tensor.flatten()}:
+in the standardized pattern set out in PyTorch's \texttt{Tensor.flatten()}:
 \begin{center}
     \texttt{[OUT\_CHANNEL][IN\_CHANNEL][INPUT\_WIDTH]}
 \end{center}
@@ -365,7 +367,7 @@ is received on the input.
 The fully connected layer can be summarized as a single matrix multiply followed by an add with a bias term. Our implementation receives inputs through an AXI4-Stream bus and a weights-and-biases input channel. We use the same packing standard for weights, biases, and inputs as our Conv1D layer.
 Given the relatively small output size of the global max pool layer, this layer is implemented entirely combinationally, reducing the latency of our system. It first splits the inputs, multiplies them by their weights, and adds the results with their respective biases. It outputs the results as a packed array on an AXI4-Stream bus.
 \subsection{Drop Buffer FIFO}
-The drop buffer FIFO is responsible for either propagating or dropping packets, as well as providing back pressure to the Ethernet subsystem. It takes in an AXI4-Stream from the receive side of the Ethernet subsystem and outputs an AXI4-Stream bus to the transmit side of the Ethernet subsystem. Additionally, it receives two control signals, $valid$ and $good$, which in combination with the $tlast$ signal from the AXI4-Stream S port implement the FSM seen in Fig. \ref{fig:fifo_fsm}. If a frame is dropped, the pipeline can begin processing the next frame immediately. If the frame is propagated, the filter can begin processing the next frame when the FIFO is empty.
+The drop buffer FIFO is responsible for either propagating or dropping packets, as well as providing back pressure to the Ethernet subsystem. It takes in an AXI4-Stream from the receive side of the Ethernet subsystem and outputs an AXI4-Stream bus to the transmit side of the Ethernet subsystem. Additionally, it receives two control signals, $valid$ and $good$, which in combination with the $tlast$ signal from the AXI4-Stream S port implement the FSM seen in Fig. \ref{fig:fifo_fsm}. If a frame is dropped, the pipeline can begin processing the next frame immediately. If the frame is propagated, the classifier can begin processing the next frame when the FIFO is empty.
 \begin{figure}
     \centering
     \includegraphics[width=0.7\linewidth]{images/fifo_fsm.png}
@@ -381,7 +383,8 @@ To validate the model layer designs,
 they are all individually tested against the PyTorch implementations,
 on randomized inputs.
 As all layers implement AXI4-Stream interfaces both for inputs
-and outputs, the testbench harnesses have been generalized and shared.
+and outputs, the testbench harness has been generalized and shared
+between the tests.
 
 \subsection{Testbenching: Full Model}\label{ref:tb-full-model}
 After the model has been trained, the model parameters are quantized
@@ -581,7 +584,7 @@ the network latency of LEFIN-Filter.
     \label{tab:imp_rep}
 \end{table}
 
-The FPGA resource utilization, shown in Fig. \ref{tab:imp_rep},
+The FPGA resource utilization, shown in Table \ref{tab:imp_rep},
 is relatively low for multiple reasons:
 \begin{itemize}
     \item The model is small
@@ -592,7 +595,7 @@ is relatively low for multiple reasons:
 
 \section{Future Work}
 \subsection{Non-Blocking FIFO or FCS Corruption}
-In scenarios with back-to-back frame transfers from the Ethernet subsystem, our drop buffer FIFO may cause a backlog if it needs to finish propagating a large packet. Although we were far from reaching this limit and unable to observe it with our demonstration platform, we believe it could be beneficial to proactively address this. To minimize the chances of this backlog, we can implement a variety of solutions ranging from duplicating the FIFO and adding an arbiter for the active FIFO, creating a FIFO which holds and marks more frames, or adding FCS corruption to minimize delay.
+In scenarios with back-to-back frame transfers from the Ethernet subsystem, our drop buffer FIFO may cause a backlog if it needs to finish propagating a large packet. Although we were far from reaching this limit and unable to observe it with our demonstration platform, we believe it could be beneficial to proactively address this. To minimize the chances of this backlog, we can implement a variety of solutions ranging from duplicating the FIFO and adding an arbiter for the active FIFO, creating a FIFO which holds and marks more frames, or implementing cut-through with FCS corruption to minimize delay.
 
 \subsection{More Types of Classifications}
 Malware is ever-evolving. While the current model architecture is sufficient for identifying malware vs. benign frames, expanding our layers and adding a softmax layer may allow us to classify certain types of malware or types of benign frames.
@@ -617,7 +620,7 @@ We would like to thank Joe Steinmeyer and Oliver Trevor for their assistance, su
     \bibitem{paper-neugebauer}Neugebauer, Rolf, et al. "Understanding PCIe performance for end host networking." Proceedings of the 2018 Conference of the ACM Special Interest Group on Data Communication. 2018.
     \bibitem{paper-ix-os} {Adam Belay, George Prekas, Mia Primorac, Ana Klimovic, Samuel Grossman, Christos Kozyrakis, and Edouard Bugnion. 2016. The IX Operating System: Combining Low Latency, High Throughput, and Efficiency in a Protected Dataplane. ACM Trans. Comput. Syst. 34, 4, Article 11 (January 2017), 39 pages. https://doi.org/10.1145/2997641}
     \bibitem{paper-wang-malware}{Wei Wang, Ming Zhu, Xuewen Zeng, Xiaozhou Ye and Yiqiang Sheng, "Malware traffic classification using convolutional neural network for representation learning," 2017 International Conference on Information Networking (ICOIN), Da Nang, Vietnam, 2017, pp. 712-717, doi: 10.1109/ICOIN.2017.7899588.}
-    \bibitem{ref-eth-sub}AMD 10G/25G High Speed Ethernet Subsystem https://docs.amd.com/r/en-US/pg210-25g-ethernet/Introduction?tocId=reO6WKaRxFuxiCk6fDpLBQ
+    \bibitem{ref-eth-sub}AMD 10G/25G High Speed Ethernet Subsystem https://docs.amd.com/r/en-US/pg210-25g-ethernet/Introduction
     \bibitem{paper-torchao}{Or, Andrew, Apurva Jain, Daniel Vega-Myhre, Jesse Cai, Charles David Hernandez, Zhenrui Zheng, Driss Guessous, Vasiliy V. Kuznetsov, Christian Puhrsch, Mark-Albert Saroufim, Supriya Rao, Thien Tran and Aleksandar Samardzic. “TorchAO: PyTorch-Native Training-to-Serving Model Optimization.” ArXiv abs/2507.16099 (2025).}
     \bibitem{paper-int8}{Wu, Hao, Patrick Judd, Xiaojie Zhang, Mikhail Isaev and Paulius Micikevicius. “Integer Quantization for Deep Learning Inference: Principles and Empirical Evaluation.” ArXiv abs/2004.09602 (2020).}
 \end{thebibliography}
