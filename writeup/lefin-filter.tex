@@ -89,7 +89,7 @@ Modern servers with software-defined machine learning are flexible, but this com
 \subsection{Goals}
 \begin{itemize}
     \item Classify and filter Ethernet packets at a 10 Gbps line rate
-    \item Provide deterministic, predictable latency under $3\,\mu\text{s}$
+    \item Provide latency under $3\,\mu\text{s}$
     \item Achieve at least 95\% classification and filter accuracy
 \end{itemize}
 
@@ -546,6 +546,21 @@ The results shown in Table \ref{tab:results-latency}
 that we are unable to measure the latency with our current setup.
 Additionally, it indicates that the timestamping script and/or
 \texttt{tcpdump} is likely not using HW timestamps.
+
+By our estimates, even for sub-$784\,$B Ethernet frames,
+the passthrough will be delayed by:
+\begin{enumerate}
+    \item 3 additional cycles for padding
+    \item 2 cycles to go through 1D convolution
+    \item 1 cycle to finish global max pool
+    \item 0 cycles to go through full-connected
+    \item 1 cycle to go through Comparator
+    \item 1 cycle for the FIFO to begin reading
+\end{enumerate}
+Therefore, we estimate, given the $6.4\,$ns clock period,
+an additional latency of around $50 ns$.
+This would be in addition to any latency introduced by the
+Ethernet Subsystem IP.
 
 Although we ran out of time to continue to debug the evaluation
 infrastructure, it remains an open problem to properly benchmark
