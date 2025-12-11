@@ -4,6 +4,8 @@ Line-rate Ethernet Frame Inline Network Filter
 
 > Achieves 99% accuracy on the [USTC-TFC2016](https://github.com/davidyslu/USTC-TFC2016) dataset
 
+[**View the writeup here**](https://github.com/user-attachments/files/24094593/lefin-filter.pdf)
+
 ### Hardware
 
 - RealDigital 4x2 RFSoC (ZYNQ Ultrascale+ ZU48DR)
