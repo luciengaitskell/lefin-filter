@@ -58,3 +58,9 @@ uv run -m model.export_weights --ckpt model/checkpoints/ustc_packet_l2/best_int8
 ```
 uv run replay_filter_eval.py run --tx eth0 --rx eth1 --payload-layer l2 --count 5000
 ```
+
+---
+
+### Block diagram
+
+![Block diagram](writeup/images/general_bd.png)
