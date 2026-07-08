@@ -12,6 +12,14 @@ Line-rate Ethernet Frame Inline Network Filter
 - Mellanox ConnectX-4 Lx EN (MCX4121A-ACAT)
 - QSFP28 to 4xSFP28 Direct Attach Copper cable
 
+
+<details>
+<summary>(Photo of the setup)</summary>
+
+![Bench setup](images/bench_setup.jpg)
+
+</details>
+
 ---
 
 MIT 6.S965:
